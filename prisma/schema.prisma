@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -8,10 +7,284 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model test {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+enum UserProfileStatus {
+  INCOMPLETE
+  COMPLETE
+  SUSPENDED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Provider {
+  GOOGLE
+  CREDENTIALS
+}
+
+enum TaskStatus {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskCategory {
+  DELIVERY
+  CLEANING
+  REPAIR
+  TUTORING
+  GARDENING
+  MOVING
+  PET_CARE
+  TECH_SUPPORT
+  OTHER
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  CANCELLED
+}
+
+model User {
+  id              String            @id @default(cuid())
+  email           String            @unique @db.VarChar(255)
+  name            String            @db.VarChar(100)
+  password        String?           @db.VarChar(255)
+  role            UserRole          @default(USER)
+  profileStatus   UserProfileStatus @default(INCOMPLETE)
+  provider        Provider          @default(CREDENTIALS)
+  image           String?           @db.VarChar(500)
+  dateOfBirth     DateTime?
+  gender          Gender?
+  emailVerified   Boolean           @default(false)
+  emailVerifiedAt DateTime?
+  address         String?           @db.Text
+  phone           String?           @db.VarChar(20)
+  bio             String?           @db.Text
+
+  // Security & Authentication
+  lastLoginAt        DateTime?
+  passwordResetToken String?   @db.VarChar(255)
+  passwordResetAt    DateTime?
+  failedLoginCount   Int       @default(0) @db.SmallInt
+  lockedAt           DateTime?
+
+  // Soft delete & Audit
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  deletedBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  tasks            Task[]
+  applications     Application[]
+  authoredReviews  Review[]      @relation("ReviewAuthor")
+  receivedReviews  Review[]      @relation("ReviewRecipient")
+  sentMessages     Message[]     @relation("MessageSender")
+  receivedMessages Message[]     @relation("MessageRecipient")
+
+  @@index([isDeleted])
+  @@index([createdAt])
+  @@index([role])
+  @@map("users")
+}
+
+model Task {
+  id                 String       @id @default(cuid())
+  title              String       @db.VarChar(200)
+  description        String       @db.Text
+  category           TaskCategory
+  priority           TaskPriority @default(MEDIUM)
+  postedById         String
+  postedBy           User         @relation(fields: [postedById], references: [id], onDelete: Cascade)
+  status             TaskStatus   @default(OPEN)
+  location           String       @db.VarChar(255)
+  latitude           Float?       @db.DoublePrecision
+  longitude          Float?       @db.DoublePrecision
+  baseCompensation   Decimal      @db.Decimal(10, 2)
+  agreedCompensation Decimal?     @db.Decimal(10, 2)
+  scheduledAt        DateTime
+  estimatedDuration  Int?         @db.SmallInt // in minutes
+  expiresAt          DateTime?
+
+  // Approved application relationship
+  approvedApplicationId String?      @unique
+  approvedApplication   Application? @relation("ApprovedApplication", fields: [approvedApplicationId], references: [id])
+
+  // Soft delete & Audit
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  deletedBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  applications Application[]
+  reviews      Review[]
+  messages     Message[]
+  Image        Image[]
+
+  @@index([postedById])
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+  @@index([scheduledAt])
+  @@index([isDeleted])
+  @@index([createdAt])
+  @@index([expiresAt])
+  @@index([location])
+  @@map("tasks")
+}
+
+model Application {
+  id                   String            @id @default(cuid())
+  message              String            @db.Text
+  proposedCompensation Decimal           @db.Decimal(10, 2)
+  applicantId          String
+  applicant            User              @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  taskId               String
+  task                 Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  status               ApplicationStatus @default(PENDING)
+  rejectionReason      String?           @db.Text
+  withdrawalReason     String?           @db.Text
+
+  // Approved relationship
+  approvedForTask Task? @relation("ApprovedApplication")
+
+  // Audit
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([applicantId, taskId], name: "unique_application_per_task")
+  @@index([applicantId])
+  @@index([taskId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("applications")
+}
+
+model Review {
+  id       String  @id @default(cuid())
+  rating   Int     @db.SmallInt
+  comment  String? @db.Text
+  isPublic Boolean @default(true)
+
+  // Relations to User
+  authorId String
+  author   User   @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   User   @relation("ReviewRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  // Relation to Task
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // Audit
+  createdBy String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([authorId, taskId], name: "unique_review_per_task")
+  @@index([recipientId])
+  @@index([taskId])
+  @@index([rating])
+  @@index([createdAt])
+  @@map("reviews")
+}
+
+model Image {
+  id        String   @id @default(cuid())
+  url       String   @db.VarChar(500)
+  altText   String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("images")
+}
+
+model Message {
+  id      String    @id @default(cuid())
+  content String    @db.Text
+  isRead  Boolean   @default(false)
+  readAt  DateTime?
+
+  // Relations
+  senderId String
+  sender   User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   User   @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  // Thread support
+  parentId String?
+  parent   Message?  @relation("MessageThread", fields: [parentId], references: [id])
+  replies  Message[] @relation("MessageThread")
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([taskId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model Location {
+  id        String  @id @default(cuid())
+  name      String  @db.VarChar(255)
+  city      String  @db.VarChar(100)
+  state     String  @db.VarChar(100)
+  country   String  @db.VarChar(100)
+  zipCode   String? @db.VarChar(20)
+  latitude  Float   @db.DoublePrecision
+  longitude Float   @db.DoublePrecision
+  isActive  Boolean @default(true)
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([city])
+  @@index([state])
+  @@index([country])
+  @@index([zipCode])
+  @@index([latitude, longitude])
+  @@index([isActive])
+  @@map("locations")
 }
