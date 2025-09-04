@@ -1,16 +1,25 @@
 import { Router } from "express";
+import validateRequest from "../../middlewares/validateRequest";
+import {
+  createUserController,
+  getAllUsersController,
+  getUserByIdController,
+} from "./user.controller";
+import { createUserSchema } from "./user.validator";
 
-// Defines user-related API routes
 const router = Router();
 
+// POST /users - Create new user with credentials
+router.post(
+  "/register/credentials",
+  validateRequest(createUserSchema),
+  createUserController
+);
 // GET /users - Get all users
-// router.get('/', userController.getAllUsers);
+router.get("/", getAllUsersController);
 
 // // GET /users/:id - Get user by ID
-// router.get('/:id', userController.getUserById);
-
-// // POST /users - Create new user
-// router.post('/', userController.createUser);
+router.get("/:id", getUserByIdController);
 
 // // PUT /users/:id - Update user
 // router.put('/:id', userController.updateUser);

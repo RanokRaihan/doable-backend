@@ -5,7 +5,7 @@ CREATE TYPE "public"."UserRole" AS ENUM ('USER', 'ADMIN', 'MODERATOR');
 CREATE TYPE "public"."UserProfileStatus" AS ENUM ('INCOMPLETE', 'COMPLETE', 'SUSPENDED');
 
 -- CreateEnum
-CREATE TYPE "public"."Gender" AS ENUM ('MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY');
+CREATE TYPE "public"."Gender" AS ENUM ('MALE', 'FEMALE', 'OTHER');
 
 -- CreateEnum
 CREATE TYPE "public"."Provider" AS ENUM ('GOOGLE', 'CREDENTIALS');
@@ -46,8 +46,6 @@ CREATE TABLE "public"."users" (
     "lockedAt" TIMESTAMP(3),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "deletedAt" TIMESTAMP(3),
-    "createdBy" TEXT,
-    "updatedBy" TEXT,
     "deletedBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -64,7 +62,6 @@ CREATE TABLE "public"."tasks" (
     "priority" "public"."TaskPriority" NOT NULL DEFAULT 'MEDIUM',
     "postedById" TEXT NOT NULL,
     "status" "public"."TaskStatus" NOT NULL DEFAULT 'OPEN',
-    "image" VARCHAR(500),
     "location" VARCHAR(255) NOT NULL,
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION,
@@ -72,7 +69,6 @@ CREATE TABLE "public"."tasks" (
     "agreedCompensation" DECIMAL(10,2),
     "scheduledAt" TIMESTAMP(3) NOT NULL,
     "estimatedDuration" SMALLINT,
-    "maxApplicants" SMALLINT DEFAULT 10,
     "expiresAt" TIMESTAMP(3),
     "approvedApplicationId" TEXT,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -89,7 +85,6 @@ CREATE TABLE "public"."applications" (
     "id" TEXT NOT NULL,
     "message" TEXT NOT NULL,
     "proposedCompensation" DECIMAL(10,2) NOT NULL,
-    "estimatedCompletion" TIMESTAMP(3),
     "applicantId" TEXT NOT NULL,
     "taskId" TEXT NOT NULL,
     "status" "public"."ApplicationStatus" NOT NULL DEFAULT 'PENDING',
@@ -119,6 +114,18 @@ CREATE TABLE "public"."reviews" (
 );
 
 -- CreateTable
+CREATE TABLE "public"."images" (
+    "id" TEXT NOT NULL,
+    "url" VARCHAR(500) NOT NULL,
+    "altText" VARCHAR(255),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "taskId" TEXT NOT NULL,
+
+    CONSTRAINT "images_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "public"."messages" (
     "id" TEXT NOT NULL,
     "content" TEXT NOT NULL,
@@ -132,20 +139,6 @@ CREATE TABLE "public"."messages" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "messages_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."categories" (
-    "id" TEXT NOT NULL,
-    "name" VARCHAR(100) NOT NULL,
-    "description" TEXT,
-    "icon" VARCHAR(100),
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "sortOrder" SMALLINT NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -163,37 +156,6 @@ CREATE TABLE "public"."locations" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "locations_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."audit_logs" (
-    "id" TEXT NOT NULL,
-    "tableName" VARCHAR(100) NOT NULL,
-    "recordId" VARCHAR(50) NOT NULL,
-    "action" VARCHAR(20) NOT NULL,
-    "oldValues" JSONB,
-    "newValues" JSONB,
-    "userId" TEXT,
-    "ipAddress" VARCHAR(45),
-    "userAgent" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."settings" (
-    "id" TEXT NOT NULL,
-    "key" VARCHAR(100) NOT NULL,
-    "value" TEXT NOT NULL,
-    "description" TEXT,
-    "isSystem" BOOLEAN NOT NULL DEFAULT false,
-    "createdBy" TEXT,
-    "updatedBy" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "settings_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -269,6 +231,9 @@ CREATE INDEX "reviews_createdAt_idx" ON "public"."reviews"("createdAt");
 CREATE UNIQUE INDEX "reviews_authorId_taskId_key" ON "public"."reviews"("authorId", "taskId");
 
 -- CreateIndex
+CREATE INDEX "images_taskId_idx" ON "public"."images"("taskId");
+
+-- CreateIndex
 CREATE INDEX "messages_senderId_idx" ON "public"."messages"("senderId");
 
 -- CreateIndex
@@ -282,15 +247,6 @@ CREATE INDEX "messages_isRead_idx" ON "public"."messages"("isRead");
 
 -- CreateIndex
 CREATE INDEX "messages_createdAt_idx" ON "public"."messages"("createdAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "categories_name_key" ON "public"."categories"("name");
-
--- CreateIndex
-CREATE INDEX "categories_isActive_idx" ON "public"."categories"("isActive");
-
--- CreateIndex
-CREATE INDEX "categories_sortOrder_idx" ON "public"."categories"("sortOrder");
 
 -- CreateIndex
 CREATE INDEX "locations_city_idx" ON "public"."locations"("city");
@@ -309,30 +265,6 @@ CREATE INDEX "locations_latitude_longitude_idx" ON "public"."locations"("latitud
 
 -- CreateIndex
 CREATE INDEX "locations_isActive_idx" ON "public"."locations"("isActive");
-
--- CreateIndex
-CREATE INDEX "audit_logs_tableName_idx" ON "public"."audit_logs"("tableName");
-
--- CreateIndex
-CREATE INDEX "audit_logs_recordId_idx" ON "public"."audit_logs"("recordId");
-
--- CreateIndex
-CREATE INDEX "audit_logs_action_idx" ON "public"."audit_logs"("action");
-
--- CreateIndex
-CREATE INDEX "audit_logs_userId_idx" ON "public"."audit_logs"("userId");
-
--- CreateIndex
-CREATE INDEX "audit_logs_createdAt_idx" ON "public"."audit_logs"("createdAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "settings_key_key" ON "public"."settings"("key");
-
--- CreateIndex
-CREATE INDEX "settings_key_idx" ON "public"."settings"("key");
-
--- CreateIndex
-CREATE INDEX "settings_isSystem_idx" ON "public"."settings"("isSystem");
 
 -- AddForeignKey
 ALTER TABLE "public"."tasks" ADD CONSTRAINT "tasks_postedById_fkey" FOREIGN KEY ("postedById") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -354,6 +286,9 @@ ALTER TABLE "public"."reviews" ADD CONSTRAINT "reviews_recipientId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "public"."reviews" ADD CONSTRAINT "reviews_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "public"."tasks"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."images" ADD CONSTRAINT "images_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "public"."tasks"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."messages" ADD CONSTRAINT "messages_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

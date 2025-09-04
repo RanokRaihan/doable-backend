@@ -1,34 +1,23 @@
-import { Gender, Provider, UserProfileStatus, UserRole } from "@prisma/client";
+import { Gender, UserProfileStatus } from "@prisma/client";
 import { z } from "zod";
 
 // Validation logic for user input
 export const createUserSchema = z.object({
   body: z
     .object({
-      email: z.email().max(255),
-      name: z.string().min(1).max(100),
-      password: z.string().min(8).max(255).optional(),
-      role: z.enum(UserRole).default(UserRole.USER),
-      provider: z.enum(Provider).default(Provider.CREDENTIALS),
-      image: z.url().max(500).optional(),
-      dateOfBirth: z.date().optional(),
-      gender: z.enum(Gender).optional(),
-      address: z.string().optional(),
-      phone: z.string().max(20).optional(),
-      bio: z.string().optional(),
+      email: z
+        .email({ message: "Invalid email format" })
+        .max(255, { message: "Email must be less than 255 characters" }),
+      name: z
+        .string()
+        .min(1, { message: "Name is required" })
+        .max(100, { message: "Name must be less than 100 characters" }),
+      password: z
+        .string()
+        .min(8, { message: "Password must be at least 8 characters long" })
+        .max(255, { message: "Password must be less than 255 characters" }),
     })
-    .refine(
-      (data) => {
-        if (data.provider === Provider.CREDENTIALS) {
-          return data.password !== undefined && data.password.length >= 8;
-        }
-        return true;
-      },
-      {
-        message: "Password is required ",
-        path: ["password"],
-      }
-    ),
+    .strict(),
 });
 
 export const updateUserSchema = z.object({
@@ -72,11 +61,11 @@ export const updateProfileStatusSchema = z.object({
   }),
 });
 
-export type CreateUserInput = z.infer<typeof createUserSchema>;
-export type UpdateUserInput = z.infer<typeof updateUserSchema>;
-export type UserLoginInput = z.infer<typeof userLoginSchema>;
-export type PasswordResetInput = z.infer<typeof passwordResetSchema>;
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type CreateUserInput = z.infer<typeof createUserSchema>["body"];
+export type UpdateUserInput = z.infer<typeof updateUserSchema>["body"];
+export type UserLoginInput = z.infer<typeof userLoginSchema>["body"];
+export type PasswordResetInput = z.infer<typeof passwordResetSchema>["body"];
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>["body"];
 export type UpdateProfileStatusInput = z.infer<
   typeof updateProfileStatusSchema
->;
+>["body"];

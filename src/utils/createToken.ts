@@ -1,6 +1,6 @@
 import jwt, { SignOptions } from "jsonwebtoken";
 import { IJwtPayload } from "../modules/auth/auth.interface";
-import { AppError } from "./../middlewares/errorHandler";
+import { AppError } from "./appError";
 
 export const createToken = (
   jwtPayload: IJwtPayload,
