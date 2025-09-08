@@ -71,7 +71,7 @@ export const getAllUsersService = async () => {
 export const getUserByEmailService = async (email: string) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email, isDeleted: false },
       select: {
         id: true,
         email: true,
