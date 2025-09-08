@@ -6,7 +6,6 @@ import { AppError } from "../utils";
 import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import config from "../config";
-const { nodeEnv } = config;
 
 export const globalErrorHandler: ErrorRequestHandler = (
   err,
@@ -120,7 +119,7 @@ export const globalErrorHandler: ErrorRequestHandler = (
   }
 
   // Log error in production
-  if (process.env.NODE_ENV === "production") {
+  if (config.nodeEnv === "production") {
     console.error("Error:", {
       message: err.message,
       stack: err.stack,
@@ -136,7 +135,7 @@ export const globalErrorHandler: ErrorRequestHandler = (
     statusCode,
     errorType,
     errorSources,
-    stack: nodeEnv === "development" ? err?.stack : null,
+    stack: config.nodeEnv === "development" ? err?.stack : null,
   });
 };
 
@@ -151,6 +150,6 @@ export const notFoundHandler: RequestHandler = (req, res, _next) => {
         message: `Route '${req.originalUrl}' does not exist`,
       },
     ],
-    stack: nodeEnv === "development" ? null : undefined,
+    stack: config.nodeEnv === "development" ? null : undefined,
   });
 };

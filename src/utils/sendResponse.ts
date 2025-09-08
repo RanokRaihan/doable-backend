@@ -1,4 +1,5 @@
 import { Response } from "express";
+import config from "../config";
 import {
   IErrorOptions,
   IErrorResponse,
@@ -86,7 +87,7 @@ class ResponseHandler {
       response.error.errorSources = options.errorSources;
     }
 
-    if (options?.includeStack && process.env.NODE_ENV === "development") {
+    if (options?.includeStack && config.nodeEnv === "development") {
       const stack = new Error().stack;
       if (stack) {
         response.error.stack = stack;

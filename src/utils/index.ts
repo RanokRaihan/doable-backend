@@ -4,6 +4,9 @@
 export * from "./sendResponse";
 export { default as ResponseHandler, sendResponse } from "./sendResponse";
 
+// email utilities
+export * from "./sendEmail";
+
 // Other utilities
 export { AppError } from "./appError";
 export { asyncHandler } from "./asyncHandler";

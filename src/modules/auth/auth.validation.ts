@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const loginValidationSchema = z.object({
+const loginValidationSchema = z.object({
   body: z
     .object({
       email: z.email("Invalid email format"),
@@ -9,7 +9,7 @@ export const loginValidationSchema = z.object({
     .strict(),
 });
 
-export const changePasswordValidationSchema = z.object({
+const changePasswordValidationSchema = z.object({
   body: z
     .object({
       oldPassword: z.string().min(1, "Old password is required"),
@@ -19,3 +19,30 @@ export const changePasswordValidationSchema = z.object({
     })
     .strict(),
 });
+
+const forgotPasswordValidationSchema = z.object({
+  body: z
+    .object({
+      email: z.email("Invalid email format"),
+    })
+    .strict(),
+});
+
+const resetPasswordValidationSchema = z.object({
+  body: z
+    .object({
+      email: z.email("Invalid email format"),
+      newPassword: z
+        .string()
+        .min(8, "New password must be at least 8 characters long"),
+      resetToken: z.string().min(1, "Reset token is required"),
+    })
+    .strict(),
+});
+
+export {
+  changePasswordValidationSchema,
+  forgotPasswordValidationSchema,
+  loginValidationSchema,
+  resetPasswordValidationSchema,
+};
