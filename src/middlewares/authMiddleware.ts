@@ -40,7 +40,7 @@ export const auth = asyncHandler(
 
     // Get user and validate existence
     const user = await getCurrentUserService(decoded.userId);
-    if (!user) {
+    if (!user || user.isDeleted) {
       throw new AppError(HTTP_STATUS.NOT_FOUND, ERROR_MESSAGES.USER_NOT_FOUND);
     }
 

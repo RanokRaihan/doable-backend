@@ -126,7 +126,7 @@ model Task {
   baseCompensation   Decimal      @db.Decimal(10, 2)
   agreedCompensation Decimal?     @db.Decimal(10, 2)
   scheduledAt        DateTime
-  estimatedDuration  Int?         @db.SmallInt // in minutes
+  estimatedDuration  Int?         @db.SmallInt // in minutes TODO: change to required
   expiresAt          DateTime?
 
   // Approved application relationship
