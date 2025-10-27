@@ -1,4 +1,4 @@
-import { Gender, UserProfileStatus } from "@prisma/client";
+import { Gender } from "@prisma/client";
 import { z } from "zod";
 
 // Validation logic for user input
@@ -32,40 +32,5 @@ export const updateUserSchema = z.object({
   }),
 });
 
-export const userLoginSchema = z.object({
-  body: z.object({
-    email: z.email(),
-    password: z.string().min(1, { message: "Password is required" }),
-  }),
-});
-
-export const passwordResetSchema = z.object({
-  body: z.object({
-    email: z.email(),
-  }),
-});
-
-export const changePasswordSchema = z.object({
-  body: z.object({
-    currentPassword: z.string().min(1),
-    newPassword: z
-      .string()
-      .min(8, { message: "New password must be at least 8 characters long" })
-      .max(255),
-  }),
-});
-
-export const updateProfileStatusSchema = z.object({
-  body: z.object({
-    profileStatus: z.enum(UserProfileStatus),
-  }),
-});
-
 export type CreateUserInput = z.infer<typeof createUserSchema>["body"];
 export type UpdateUserInput = z.infer<typeof updateUserSchema>["body"];
-export type UserLoginInput = z.infer<typeof userLoginSchema>["body"];
-export type PasswordResetInput = z.infer<typeof passwordResetSchema>["body"];
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>["body"];
-export type UpdateProfileStatusInput = z.infer<
-  typeof updateProfileStatusSchema
->["body"];

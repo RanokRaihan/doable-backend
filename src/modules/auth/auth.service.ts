@@ -5,8 +5,7 @@ import config from "../../config";
 import { prisma } from "../../config/database";
 import { AppError, sendEmail } from "../../utils";
 import { createToken } from "../../utils/createToken";
-import { UserLoginInput } from "../user/user.validator";
-import { IJwtPayload } from "./auth.interface";
+import { IJwtPayload, UserLoginInput } from "./auth.interface";
 
 const {
   jwt: { accessSecret, refreshSecret, accessExpiresIn, refreshExpiresIn },
@@ -128,6 +127,7 @@ const getCurrentUserService = async (userId: string) => {
         name: true,
         role: true,
         profileStatus: true,
+        isDeleted: true,
         emailVerified: true,
         createdAt: true,
         updatedAt: true,
