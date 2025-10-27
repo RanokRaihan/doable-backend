@@ -144,7 +144,7 @@ model Task {
   applications Application[]
   reviews      Review[]
   messages     Message[]
-  Image        Image[]
+  images       Image[]
 
   @@index([postedById])
   @@index([status])
