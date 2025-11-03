@@ -1,5 +1,9 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
+import {
+  taskSensitiveFieldsOwner,
+  taskSensitiveFieldsPublic,
+} from "./task.constant";
 import { CreateTaskPayload, UpdateTaskPayload } from "./task.interface";
 
 // Contains business logic for task operations
@@ -12,22 +16,8 @@ const createTaskService = async (taskData: CreateTaskPayload) => {
         longitude: taskData.longitude ?? null,
         expiresAt: taskData.expiresAt ?? null,
       },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        priority: true,
-        location: true,
-        latitude: true,
-        longitude: true,
-        baseCompensation: true,
-        scheduledAt: true,
-        estimatedDuration: true,
-        expiresAt: true,
-        postedById: true,
-        createdAt: true,
-        updatedAt: true,
+      omit: {
+        ...taskSensitiveFieldsOwner,
       },
     });
 
@@ -43,27 +33,11 @@ const getTasksService = async () => {
   try {
     const tasks = await prisma.task.findMany({
       where: { isDeleted: false },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        priority: true,
-        location: true,
-        latitude: true,
-        longitude: true,
-        baseCompensation: true,
-        estimatedDuration: true,
-        expiresAt: true,
-        postedById: true,
-        createdAt: true,
-        updatedAt: true,
-        images: {
-          select: {
-            url: true,
-            altText: true,
-          },
-        },
+      include: {
+        images: true,
+      },
+      omit: {
+        ...taskSensitiveFieldsPublic,
       },
     });
     return tasks;
@@ -78,27 +52,12 @@ const getTaskByIdService = async (taskId: string) => {
   try {
     const task = await prisma.task.findFirst({
       where: { id: taskId, isDeleted: false },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        priority: true,
-        location: true,
-        latitude: true,
-        longitude: true,
-        baseCompensation: true,
-        estimatedDuration: true,
-        expiresAt: true,
-        postedById: true,
-        createdAt: true,
-        updatedAt: true,
-        images: {
-          select: {
-            url: true,
-            altText: true,
-          },
-        },
+      include: {
+        images: true,
+        approvedApplication: true,
+      },
+      omit: {
+        ...taskSensitiveFieldsPublic,
       },
     });
     if (!task) {
