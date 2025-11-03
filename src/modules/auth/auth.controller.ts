@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import config from "../../config";
 import { asyncHandler, ResponseHandler } from "../../utils";
-import { UserLoginInput } from "../user/user.validator";
+import { UserLoginInput } from "./auth.interface";
 import {
   changeUserPasswordService,
   forgotPasswordService,
