@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
+import { taskSensetiveFields } from "./task.constant";
 import { CreateTaskPayload, UpdateTaskPayload } from "./task.interface";
 
 // Contains business logic for task operations
@@ -78,28 +79,36 @@ const getTaskByIdService = async (taskId: string) => {
   try {
     const task = await prisma.task.findFirst({
       where: { id: taskId, isDeleted: false },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        priority: true,
-        location: true,
-        latitude: true,
-        longitude: true,
-        baseCompensation: true,
-        estimatedDuration: true,
-        expiresAt: true,
-        postedById: true,
-        createdAt: true,
-        updatedAt: true,
-        images: {
-          select: {
-            url: true,
-            altText: true,
-          },
-        },
+      include: {
+        images: true,
+        approvedApplication: true,
       },
+      omit: {
+        ...taskSensetiveFields,
+      },
+      // uncomment later
+      // select: {
+      //   id: true,
+      //   title: true,
+      //   description: true,
+      //   category: true,
+      //   priority: true,
+      //   location: true,
+      //   latitude: true,
+      //   longitude: true,
+      //   baseCompensation: true,
+      //   estimatedDuration: true,
+      //   expiresAt: true,
+      //   postedById: true,
+      //   createdAt: true,
+      //   updatedAt: true,
+      //   images: {
+      //     select: {
+      //       url: true,
+      //       altText: true,
+      //     },
+      //   },
+      // },
     });
     if (!task) {
       throw new AppError(404, "Task not found");
