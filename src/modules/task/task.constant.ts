@@ -1,6 +1,28 @@
-const taskSensetiveFields = {
+const taskSensitiveFieldsPublic = {
+  isDeleted: true,
+  deletedAt: true,
+  deletedBy: true,
+  postedById: true,
+  approvedApplicationId: true,
+  agreedCompensation: true,
+};
+
+const taskSensitiveFieldsOwner = {
   isDeleted: true,
   deletedAt: true,
   deletedBy: true,
 };
-export { taskSensetiveFields };
+
+const taskSensitiveFieldsApplicant = {
+  isDeleted: true,
+  deletedAt: true,
+  deletedBy: true,
+  approvedApplicationId: true,
+  agreedCompensation: true,
+};
+
+export {
+  taskSensitiveFieldsApplicant,
+  taskSensitiveFieldsOwner,
+  taskSensitiveFieldsPublic,
+};

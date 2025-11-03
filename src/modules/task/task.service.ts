@@ -1,6 +1,9 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
-import { taskSensetiveFields } from "./task.constant";
+import {
+  taskSensitiveFieldsOwner,
+  taskSensitiveFieldsPublic,
+} from "./task.constant";
 import { CreateTaskPayload, UpdateTaskPayload } from "./task.interface";
 
 // Contains business logic for task operations
@@ -13,22 +16,8 @@ const createTaskService = async (taskData: CreateTaskPayload) => {
         longitude: taskData.longitude ?? null,
         expiresAt: taskData.expiresAt ?? null,
       },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        priority: true,
-        location: true,
-        latitude: true,
-        longitude: true,
-        baseCompensation: true,
-        scheduledAt: true,
-        estimatedDuration: true,
-        expiresAt: true,
-        postedById: true,
-        createdAt: true,
-        updatedAt: true,
+      omit: {
+        ...taskSensitiveFieldsOwner,
       },
     });
 
@@ -44,27 +33,11 @@ const getTasksService = async () => {
   try {
     const tasks = await prisma.task.findMany({
       where: { isDeleted: false },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        priority: true,
-        location: true,
-        latitude: true,
-        longitude: true,
-        baseCompensation: true,
-        estimatedDuration: true,
-        expiresAt: true,
-        postedById: true,
-        createdAt: true,
-        updatedAt: true,
-        images: {
-          select: {
-            url: true,
-            altText: true,
-          },
-        },
+      include: {
+        images: true,
+      },
+      omit: {
+        ...taskSensitiveFieldsPublic,
       },
     });
     return tasks;
@@ -84,31 +57,8 @@ const getTaskByIdService = async (taskId: string) => {
         approvedApplication: true,
       },
       omit: {
-        ...taskSensetiveFields,
+        ...taskSensitiveFieldsPublic,
       },
-      // uncomment later
-      // select: {
-      //   id: true,
-      //   title: true,
-      //   description: true,
-      //   category: true,
-      //   priority: true,
-      //   location: true,
-      //   latitude: true,
-      //   longitude: true,
-      //   baseCompensation: true,
-      //   estimatedDuration: true,
-      //   expiresAt: true,
-      //   postedById: true,
-      //   createdAt: true,
-      //   updatedAt: true,
-      //   images: {
-      //     select: {
-      //       url: true,
-      //       altText: true,
-      //     },
-      //   },
-      // },
     });
     if (!task) {
       throw new AppError(404, "Task not found");
