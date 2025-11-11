@@ -31,12 +31,18 @@ enum Provider {
 }
 
 enum TaskStatus {
-  DRAFT
-  OPEN
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  EXPIRED
+  DRAFT // Task created but not published
+  OPEN // Published, accepting applications
+  ASSIGNED // Worker assigned, not started
+  IN_PROGRESS // Work actively being done
+  PENDING_REVIEW // Worker marked complete, awaiting poster confirmation
+  PAYMENT_PROCESSING // Payment being processed (for future online payments)
+  COMPLETED // Final success state
+  PAYMENT_FAILED // Payment failed (for future)
+  DISPUTED //  Simple flag for manual admin review (MVP)
+  CANCELLED // Cancelled before completion
+  EXPIRED // Deadline passed
+  REFUNDED // Payment refunded (for future)
 }
 
 enum TaskPriority {
@@ -103,6 +109,9 @@ model User {
   receivedReviews  Review[]      @relation("ReviewRecipient")
   sentMessages     Message[]     @relation("MessageSender")
   receivedMessages Message[]     @relation("MessageRecipient")
+  paymentsMade     Payment[]     @relation("PaymentPayer")
+  paymentsReceived Payment[]     @relation("PaymentPayee")
+  wallet           Wallet?
 
   @@index([isDeleted])
   @@index([createdAt])
@@ -144,6 +153,8 @@ model Task {
   reviews      Review[]
   messages     Message[]
   images       Image[]
+  payments     Payment[]
+  commissions  CommissionDue[]
 
   @@index([postedById])
   @@index([status])
@@ -286,4 +297,113 @@ model Location {
   @@index([latitude, longitude])
   @@index([isActive])
   @@map("locations")
+}
+
+// Payment & Wallet System
+enum PaymentMethod {
+  ONLINE
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum WalletTransactionCategory {
+  TASK_PAYMENT
+  COMMISSION_DEDUCTION
+  BONUS
+  REFUND
+  WITHDRAWAL
+  MANUAL_COMMISSION_PAYMENT
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  PARTIAL
+  CANCELLED
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  taskId           String
+  task             Task          @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  payerId          String
+  payer            User          @relation("PaymentPayer", fields: [payerId], references: [id], onDelete: Restrict)
+  payeeId          String
+  payee            User          @relation("PaymentPayee", fields: [payeeId], references: [id], onDelete: Restrict)
+  amount           Decimal       @db.Decimal(10, 2)
+  method           PaymentMethod
+  status           PaymentStatus @default(PENDING)
+  commissionRate   Decimal       @default(0.15) @db.Decimal(4, 2)
+  commissionAmount Decimal?      @db.Decimal(10, 2)
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([method])
+  @@index([status])
+  @@index([payerId])
+  @@index([payeeId])
+  @@index([taskId])
+  @@map("payments")
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  balance   Decimal  @default(0.00) @db.Decimal(10, 2)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  transactions WalletTransaction[]
+  commissions  CommissionDue[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id          String                    @id @default(cuid())
+  walletId    String
+  wallet      Wallet                    @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  amount      Decimal                   @db.Decimal(10, 2)
+  type        WalletTransactionType
+  category    WalletTransactionCategory
+  referenceId String? // Links to Payment or CommissionDue
+  description String?                   @db.VarChar(255)
+  status      String?                   @default("COMPLETED") // optional safety
+  createdAt   DateTime                  @default(now())
+
+  @@index([walletId])
+  @@index([category])
+  @@map("wallet_transactions")
+}
+
+model CommissionDue {
+  id             String           @id @default(cuid())
+  walletId       String
+  wallet         Wallet           @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  taskId         String
+  task           Task             @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  amount         Decimal          @db.Decimal(10, 2)
+  status         CommissionStatus @default(PENDING)
+  paidAt         DateTime?
+  referenceTxnId String? // link to manual WalletTransaction if paid
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([walletId])
+  @@index([status])
+  @@index([taskId])
+  @@map("commission_dues")
 }
