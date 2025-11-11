@@ -2,10 +2,14 @@ import { RequestHandler } from "express";
 import { AppError, asyncHandler, sendResponse } from "../../utils";
 import { CreateTaskRequest, UpdateTaskPayload } from "./task.interface";
 import {
+  approveTaskCompletionService,
   createTaskService,
   deleteTaskService,
   getTaskByIdService,
   getTasksService,
+  markTaskAsCompletedService,
+  markTaskAsInProgressService,
+  requestTaskRevisionService,
   updateTaskService,
 } from "./task.service";
 
@@ -62,10 +66,77 @@ const deleteTaskController: RequestHandler = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Task deleted successfully!", null);
 });
 
+// task in-progress controllers
+const markTaskAsInProgressController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const user = req.user;
+    const taskId = req.params.taskId;
+    if (!user || !user.id) {
+      throw new AppError(401, "Unauthorized");
+    }
+    if (!taskId) {
+      throw new AppError(400, "Task ID is required");
+    }
+    await markTaskAsInProgressService(taskId, user.id);
+    sendResponse(res, 200, "Task marked as in progress successfully!", null);
+  }
+);
+
+// task completion controllers
+const markTaskCompletedController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const user = req.user;
+    const taskId = req.params.taskId;
+    if (!user || !user.id) {
+      throw new AppError(401, "Unauthorized");
+    }
+    if (!taskId) {
+      throw new AppError(400, "Task ID is required");
+    }
+    await markTaskAsCompletedService(taskId, user.id);
+    sendResponse(res, 200, "Task marked as completed successfully!", null);
+  }
+);
+
+const approveTaskCompletionController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const user = req.user;
+    const taskId = req.params.taskId;
+    if (!user || !user.id) {
+      throw new AppError(401, "Unauthorized");
+    }
+    if (!taskId) {
+      throw new AppError(400, "Task ID is required");
+    }
+    await approveTaskCompletionService(taskId, user.id);
+    sendResponse(res, 200, "Task approved successfully!", null);
+  }
+);
+
+const requestTaskRevisionController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const user = req.user;
+    const taskId = req.params.taskId;
+    if (!user || !user.id) {
+      throw new AppError(401, "Unauthorized");
+    }
+    if (!taskId) {
+      throw new AppError(400, "Task ID is required");
+    }
+    await requestTaskRevisionService(taskId, user.id);
+    sendResponse(res, 200, "Task revision requested successfully!", null);
+  }
+);
+
+// Exporting controllers for use in routes
 export {
+  approveTaskCompletionController,
   createTaskController,
   deleteTaskController,
   getTaskByIdController,
   getTasksController,
+  markTaskAsInProgressController,
+  markTaskCompletedController,
+  requestTaskRevisionController,
   updateTaskController,
 };
