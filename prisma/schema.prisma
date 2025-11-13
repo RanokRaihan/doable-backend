@@ -31,18 +31,18 @@ enum Provider {
 }
 
 enum TaskStatus {
-  DRAFT // Task created but not published
-  OPEN // Published, accepting applications
-  ASSIGNED // Worker assigned, not started
-  IN_PROGRESS // Work actively being done
-  PENDING_REVIEW // Worker marked complete, awaiting poster confirmation
-  PAYMENT_PROCESSING // Payment being processed (for future online payments)
-  COMPLETED // Final success state
-  PAYMENT_FAILED // Payment failed (for future)
-  DISPUTED //  Simple flag for manual admin review (MVP)
-  CANCELLED // Cancelled before completion
-  EXPIRED // Deadline passed
-  REFUNDED // Payment refunded (for future)
+  DRAFT
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  PENDING_REVIEW
+  PAYMENT_PROCESSING
+  COMPLETED
+  PAYMENT_FAILED
+  DISPUTED
+  CANCELLED
+  EXPIRED
+  REFUNDED
 }
 
 enum TaskPriority {
@@ -333,8 +333,22 @@ enum CommissionStatus {
   CANCELLED
 }
 
+enum CommissionPaymentMethod {
+  WALLET_DEDUCTION
+  MANUAL
+}
+
+enum CashStatus {
+  NO_CASH
+  PAYER_PAID
+  PAYEE_ACCEPTED
+  PAYEE_DECLINED
+  ADMIN_VERIFIED
+}
+
 model Payment {
   id               String        @id @default(cuid())
+  transactionId    String
   taskId           String
   task             Task          @relation(fields: [taskId], references: [id], onDelete: Restrict)
   payerId          String
@@ -344,11 +358,14 @@ model Payment {
   amount           Decimal       @db.Decimal(10, 2)
   method           PaymentMethod
   status           PaymentStatus @default(PENDING)
+  cashStatus       CashStatus    @default(NO_CASH)
   commissionRate   Decimal       @default(0.15) @db.Decimal(4, 2)
   commissionAmount Decimal?      @db.Decimal(10, 2)
   paidAt           DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  cashAcceptedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([method])
   @@index([status])
@@ -390,17 +407,18 @@ model WalletTransaction {
 }
 
 model CommissionDue {
-  id             String           @id @default(cuid())
+  id             String                   @id @default(cuid())
   walletId       String
-  wallet         Wallet           @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  wallet         Wallet                   @relation(fields: [walletId], references: [id], onDelete: Restrict)
   taskId         String
-  task           Task             @relation(fields: [taskId], references: [id], onDelete: Restrict)
-  amount         Decimal          @db.Decimal(10, 2)
-  status         CommissionStatus @default(PENDING)
+  task           Task                     @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  amount         Decimal                  @db.Decimal(10, 2)
+  status         CommissionStatus         @default(PENDING)
+  paymentMethod  CommissionPaymentMethod?
   paidAt         DateTime?
   referenceTxnId String? // link to manual WalletTransaction if paid
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
 
   @@index([walletId])
   @@index([status])
