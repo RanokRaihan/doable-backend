@@ -5,6 +5,7 @@ dotenv.config();
 interface Config {
   port: number;
   nodeEnv: string;
+  commissionRate: number;
   jwt: {
     accessSecret: string;
     refreshSecret: string;
@@ -23,6 +24,7 @@ interface Config {
 const config: Config = {
   port: Number(process.env.PORT) || 5000,
   nodeEnv: process.env.NODE_ENV || "development",
+  commissionRate: Number(process.env.COMMISSION_RATE) || 0.15,
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET || "access-secret",
     refreshSecret: process.env.JWT_REFRESH_SECRET || "refresh-secret",
