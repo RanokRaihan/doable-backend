@@ -107,7 +107,7 @@ const cashPaymentConfirmService = async (userId: string, paymentId: string) => {
         payment.commissionAmount || Number(payment.amount) * commissionRate;
       if (wallet.balance >= commissionAmount) {
         // Debit commission from wallet
-        await tx.wallet.update({
+        const updatedWallet = await tx.wallet.update({
           where: { userId: payment.payeeId },
           data: { balance: { decrement: commissionAmount } },
         });
@@ -122,7 +122,8 @@ const cashPaymentConfirmService = async (userId: string, paymentId: string) => {
             category: "DIRECT_COMMISSION_DEDUCTION",
             refPaymentId: payment.id,
             description: getDefaultDescription("DIRECT_COMMISSION_DEDUCTION"),
-            createdAt: new Date(),
+            balanceAfter: Number(updatedWallet.balance),
+            balanceBefore: Number(wallet.balance),
           },
         });
       } else {
