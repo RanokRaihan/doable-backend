@@ -5,13 +5,23 @@ import {
   cashPaymentConfirmController,
   cashPaymentDeclineController,
   cashPaymentInitController,
+  onlinePaymentInitController,
 } from "./payment.controller";
 
 const router = Router();
 
-router.post("/online/initiate/:taskId", auth, authorize(["USER"]));
-router.post("/cash/initiate/:taskId", auth, authorize(["USER"])),
-  cashPaymentInitController;
+router.post(
+  "/online/init/:taskId",
+  auth,
+  authorize(["USER"]),
+  onlinePaymentInitController
+);
+router.post(
+  "/cash/init/:taskId",
+  auth,
+  authorize(["USER"]),
+  cashPaymentInitController
+);
 router.patch(
   "/cash/confirm/:paymentId",
   auth,

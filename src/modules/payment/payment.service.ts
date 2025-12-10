@@ -1,10 +1,11 @@
+import axios from "axios";
+import crypto from "crypto";
 import config from "../../config";
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
 import { createTnxId } from "../../utils/createTnxId";
 import { PaymentPayload } from "./payment.interface";
 import { getDefaultDescription } from "./payment.utils";
-
 const commissionRate = config.commissionRate;
 
 const cashPaymentInitService = async (userId: string, taskId: string) => {
@@ -12,45 +13,117 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
     // check if task exists and belongs to the user
     const task = await prisma.task.findFirst({
       where: { id: taskId, isDeleted: false },
-      include: { payments: true, approvedApplication: true },
+      include: {
+        payments: true,
+        approvedApplication: true,
+      },
     });
+
     if (!task) {
       throw new AppError(404, "Task not found");
     }
-    // TODO: later accept multiple payments for a task if needed
-    if (task.payments.length > 0) {
-      throw new AppError(400, "Payment already initiated for this task!");
-    }
+
     if (task.postedById !== userId) {
       throw new AppError(
-        400,
+        403,
         "You are not authorized to make payment for this task!"
       );
     }
+
     if (task.status !== "PAYMENT_PROCESSING") {
       throw new AppError(400, "Task is not approved for payment processing!");
     }
+
     if (!task.approvedApplication) {
       throw new AppError(400, "No approved application found for this task!");
     }
 
+    // 2.2 Check for existing CASH payments
+    const cashPayments = task.payments.find((p) => p.method === "CASH");
+    if (cashPayments) {
+      throw new AppError(
+        400,
+        "Cash payment already initiated for this task!",
+        "DUPLICATE_PAYMENT",
+        "payment"
+      );
+    }
+
+    // 2.1 Check for existing ONLINE payments
+    const onlinePayments = task.payments.filter((p) => p.method === "ONLINE");
+
+    // Block if online payment is COMPLETED
+    const completedOnlinePayment = onlinePayments.find(
+      (p) => p.status === "COMPLETED"
+    );
+
+    if (completedOnlinePayment) {
+      throw new AppError(
+        400,
+        "Online payment already completed for this task!",
+        "DUPLICATE_PAYMENT",
+        "payment"
+      );
+    }
+
+    // Block if online payment is PENDING and not expired
+    const pendingOnlinePayment = onlinePayments.find(
+      (p) => p.status === "PENDING"
+    );
+
+    if (pendingOnlinePayment) {
+      const now = new Date();
+      const expiresAt = pendingOnlinePayment.sessionExpiresAt;
+
+      if (expiresAt && expiresAt > now) {
+        throw new AppError(
+          400,
+          "You have a pending online payment. Please complete or wait for it to expire before using cash payment.",
+          "PENDING_ONLINE_PAYMENT",
+          "payment"
+        );
+      }
+
+      // If expired, mark as failed
+      await prisma.payment.update({
+        where: { id: pendingOnlinePayment.id },
+        data: {
+          status: "FAILED",
+          failedAt: now,
+          failureReason: "Payment session expired - user switched to cash",
+        },
+      });
+    }
+
+    // FAILED and CANCELLED online payments are ignored - user can switch to cash
+
     // create a transaction id
     const transactionId = createTnxId("TNX");
+    const amount = Number(task.agreedCompensation);
+    const commissionAmount = Math.round(amount * commissionRate * 100) / 100;
     // Business logic for initializing cash payment
     const paymentPayload: PaymentPayload = {
       transactionId,
       taskId,
       payerId: userId,
       payeeId: task.approvedApplication.applicantId,
-      amount: Number(task.agreedCompensation),
+      amount,
       method: "CASH",
       cashStatus: "PAYER_CLAIMED",
       posterConfirmedAt: new Date(),
       commissionRate,
-      commissionAmount: Number(task.agreedCompensation) * commissionRate,
+      commissionAmount,
     };
     const payment = await prisma.payment.create({
       data: paymentPayload,
+      select: {
+        id: true,
+        transactionId: true,
+        amount: true,
+        method: true,
+        status: true,
+        cashStatus: true,
+      },
     });
     return payment;
   } catch (error) {
@@ -180,11 +253,278 @@ const cashPaymentDeclineService = async (userId: string, paymentId: string) => {
 };
 
 const onlinePaymentInitService = async (userId: string, taskId: string) => {
+  const {
+    storeId,
+    storePassword,
+    successUrl,
+    failUrl,
+    cancelUrl,
+    gatewayBaseUrl,
+  } = config.sslcommerz;
+
   try {
-    // Business logic for initializing cash payment
+    // 1. Validate task and permissions
+    const task = await prisma.task.findFirst({
+      where: { id: taskId, isDeleted: false },
+      include: {
+        payments: true,
+        approvedApplication: {
+          include: {
+            applicant: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        postedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            address: true,
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new AppError(404, "Task not found", "NOT_FOUND", "task");
+    }
+
+    if (task.postedById !== userId) {
+      throw new AppError(
+        403,
+        "You are not authorized to make payment for this task!",
+        "FORBIDDEN",
+        "payment"
+      );
+    }
+
+    if (task.status !== "PAYMENT_PROCESSING") {
+      throw new AppError(
+        400,
+        "Task is not approved for payment processing!",
+        "INVALID_TASK_STATUS",
+        "task"
+      );
+    }
+
+    if (!task.approvedApplication) {
+      throw new AppError(
+        400,
+        "No approved application found for this task!",
+        "NO_APPROVED_APPLICATION",
+        "task"
+      );
+    }
+    // 2.1 Fetch existing cash payments for the task
+    const existingCashPayment = task.payments.find((p) => p.method === "CASH");
+
+    if (existingCashPayment) {
+      throw new AppError(
+        400,
+        "Cash payment already initiated for this task!",
+        "DUPLICATE_PAYMENT",
+        "payment"
+      );
+    }
+
+    // 2.2 Check for existing online payments
+    const onlinePayments = task.payments.filter((p) => p.method === "ONLINE");
+
+    // Handle existing COMPLETED payment
+    const completedPayment = onlinePayments.find(
+      (p) => p.status === "COMPLETED"
+    );
+
+    if (completedPayment) {
+      throw new AppError(
+        400,
+        "Payment already completed for this task!",
+        "DUPLICATE_PAYMENT",
+        "payment"
+      );
+    }
+
+    // Handle existing PENDING payment
+    const pendingPayment = onlinePayments.find((p) => p.status === "PENDING");
+
+    // Handle existing PENDING payment
+    if (pendingPayment) {
+      const now = new Date();
+      const expiresAt = pendingPayment.sessionExpiresAt;
+
+      // Case 1: Payment not expired yet - return existing payment
+      if (expiresAt && expiresAt > now) {
+        return {
+          payment: {
+            id: pendingPayment.id,
+            transactionId: pendingPayment.transactionId,
+            sessionToken: pendingPayment.sessionToken,
+            amount: pendingPayment.amount,
+            method: pendingPayment.method,
+            status: pendingPayment.status,
+            sessionExpiresAt: pendingPayment.sessionExpiresAt,
+            gatewayResponse: pendingPayment.gatewayResponse,
+          },
+          gatewayUrl:
+            (pendingPayment.gatewayResponse as any)?.GatewayPageURL || null,
+          message:
+            "You have a pending payment. Please complete it or wait for expiry to retry.",
+          isExisting: true,
+        };
+      }
+
+      // Case 2: Payment expired - mark as failed and create new one
+      await prisma.payment.update({
+        where: { id: pendingPayment.id },
+        data: {
+          status: "FAILED",
+          failedAt: now,
+          failureReason: "Payment session expired",
+        },
+      });
+    }
+
+    // 3. Create new payment - generate transaction ID and session token
+    const transactionId = createTnxId("TNX");
+    const sessionToken = crypto.randomBytes(32).toString("hex");
+    const amount = Number(task.agreedCompensation);
+    const commissionAmount = Math.round(amount * commissionRate * 100) / 100;
+    const sessionExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+    // 4. Create Payment record BEFORE calling gateway
+    const payment = await prisma.payment.create({
+      data: {
+        transactionId,
+        sessionToken,
+        taskId,
+        payerId: userId,
+        payeeId: task.approvedApplication.applicantId,
+        amount,
+        method: "ONLINE",
+        commissionRate,
+        commissionAmount,
+        sessionExpiresAt,
+        metadata: {
+          initiatedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    // 5. Prepare SSLCommerz data
+    const sslcommerzData = {
+      store_id: storeId,
+      store_passwd: storePassword,
+      total_amount: amount,
+      currency: "BDT",
+      tran_id: transactionId,
+      success_url: `${successUrl}?sessionToken=${sessionToken}`,
+      fail_url: `${failUrl}?sessionToken=${sessionToken}`,
+      cancel_url: `${cancelUrl}?sessionToken=${sessionToken}`,
+      ipn_url:
+        config.sslcommerz.ipnUrl || `${config.appUrl}/api/v1/payment/ipn`,
+
+      // Product info
+      product_name: `Task Payment - ${task.title}`,
+      product_category: task.category,
+      product_profile: "service",
+
+      // Customer info (payer - task poster)
+      cus_name: task.postedBy.name,
+      cus_email: task.postedBy.email,
+      cus_add1: task.postedBy.address || "N/A",
+      cus_add2: task.location,
+      cus_city: task.location,
+      cus_state: "N/A",
+      cus_postcode: "1000",
+      cus_country: "Bangladesh",
+      cus_phone: task.postedBy.phone || "",
+      cus_fax: task.postedBy.phone || "",
+
+      // Shipping info (payee - task doer)
+      shipping_method: "N/A",
+      ship_name: task.approvedApplication.applicant.name,
+      ship_add1: task.location,
+      ship_add2: task.location,
+      ship_city: task.location,
+      ship_state: "Bangladesh",
+      ship_postcode: "1000",
+      ship_country: "Bangladesh",
+    };
+
+    // 6. Call SSLCommerz API
+    const response = await axios({
+      method: "post",
+      url: gatewayBaseUrl,
+      data: sslcommerzData,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+
+    // 7. Check if gateway initialization was successful
+    if (response.data.status !== "SUCCESS") {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "FAILED",
+          failedAt: new Date(),
+          failureReason: "Gateway initialization failed",
+          gatewayResponse: response.data,
+        },
+      });
+
+      throw new AppError(
+        500,
+        "Failed to initialize payment gateway",
+        "GATEWAY_INIT_FAILED",
+        "payment"
+      );
+    }
+
+    // 8. Update payment with gateway response
+    const updatedPayment = await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        gatewayTransactionId: response.data.sessionkey || null,
+        gatewayResponse: response.data,
+      },
+      select: {
+        id: true,
+        transactionId: true,
+        sessionToken: true,
+        amount: true,
+        method: true,
+        status: true,
+        sessionExpiresAt: true,
+        gatewayResponse: true,
+      },
+    });
+
+    // 9. Return payment details and redirect URL
+    return {
+      payment: updatedPayment,
+      gatewayUrl: response.data.GatewayPageURL,
+      message: "Payment initiated successfully. Redirect to gateway.",
+      isExisting: false,
+    };
   } catch (error) {
     console.error("Error in onlinePaymentInitService:", error);
-    throw error;
+
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    throw new AppError(
+      500,
+      "Failed to initiate online payment",
+      "PAYMENT_INIT_FAILED",
+      "payment"
+    );
   }
 };
 

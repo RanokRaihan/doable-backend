@@ -309,6 +309,7 @@ enum PaymentStatus {
   PENDING
   COMPLETED
   FAILED
+  CANCELLED
   REFUNDED
 }
 
@@ -348,28 +349,41 @@ enum PaymentType {
 }
 
 model Payment {
-  id                 String        @id @default(cuid())
-  transactionId      String        @unique
-  taskId             String
-  task               Task          @relation(fields: [taskId], references: [id], onDelete: Restrict)
-  payerId            String
-  payer              User          @relation("PaymentPayer", fields: [payerId], references: [id], onDelete: Restrict)
-  payeeId            String
-  payee              User          @relation("PaymentPayee", fields: [payeeId], references: [id], onDelete: Restrict)
-  amount             Decimal       @db.Decimal(10, 2)
-  method             PaymentMethod
-  type               PaymentType   @default(INITIAL)
-  status             PaymentStatus @default(PENDING)
-  cashStatus         CashStatus?
-  posterConfirmedAt  DateTime?
-  payeeConfirmedAt   DateTime?
-  payeeDeclinedAt    DateTime?
-  commissionRate     Decimal       @default(0.15) @db.Decimal(4, 2)
-  commissionAmount   Decimal       @db.Decimal(10, 2)
-  commissionDeducted Boolean       @default(false)
-  paidAt             DateTime?
+  id            String        @id @default(cuid())
+  transactionId String        @unique
+  taskId        String
+  task          Task          @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  payerId       String
+  payer         User          @relation("PaymentPayer", fields: [payerId], references: [id], onDelete: Restrict)
+  payeeId       String
+  payee         User          @relation("PaymentPayee", fields: [payeeId], references: [id], onDelete: Restrict)
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  type          PaymentType   @default(INITIAL)
+  status        PaymentStatus @default(PENDING)
+  cashStatus    CashStatus?
 
-  metadata Json?
+  commissionRate       Decimal @default(0.15) @db.Decimal(4, 2)
+  commissionAmount     Decimal @db.Decimal(10, 2)
+  commissionDeducted   Boolean @default(false)
+  gatewayTransactionId String? // SSLCommerz's transaction ID
+  gatewayResponse      Json?
+  metadata             Json?
+  failureReason        String? @db.Text
+
+  // Payment session tracking
+  sessionToken      String?   @unique @db.VarChar(255)
+  sessionExpiresAt  DateTime? // Payment session expiry (30 min)
+  // IPN tracking
+  ipnReceived       Boolean   @default(false)
+  ipnReceivedAt     DateTime?
+  // timestamps for various payment stages
+  posterConfirmedAt DateTime?
+  payeeConfirmedAt  DateTime?
+  payeeDeclinedAt   DateTime?
+  paidAt            DateTime?
+  failedAt          DateTime?
+  refundedAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
