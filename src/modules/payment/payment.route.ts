@@ -6,16 +6,11 @@ import {
   cashPaymentDeclineController,
   cashPaymentInitController,
   onlinePaymentInitController,
+  validateOnlinePaymentController,
 } from "./payment.controller";
 
 const router = Router();
 
-router.post(
-  "/online/init/:taskId",
-  auth,
-  authorize(["USER"]),
-  onlinePaymentInitController
-);
 router.post(
   "/cash/init/:taskId",
   auth,
@@ -34,5 +29,12 @@ router.patch(
   authorize(["USER"]),
   cashPaymentDeclineController
 );
+router.post(
+  "/online/init/:taskId",
+  auth,
+  authorize(["USER"]),
+  onlinePaymentInitController
+);
+router.post("/online/ipn-validate/", validateOnlinePaymentController);
 
 export default router;

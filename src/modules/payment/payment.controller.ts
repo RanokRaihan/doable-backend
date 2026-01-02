@@ -1,5 +1,7 @@
 import { RequestHandler } from "express";
 import { asyncHandler, sendResponse } from "../../utils";
+import { dummyValidateOnlinePaymentService } from "./payment.dummy.service";
+import { IpnQuery } from "./payment.interface";
 import {
   cashPaymentConfirmService,
   cashPaymentDeclineService,
@@ -63,9 +65,30 @@ const onlinePaymentInitController: RequestHandler = asyncHandler(
     sendResponse(res, 201, response.message, response);
   }
 );
+
+const validateOnlinePaymentController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const query = req.query;
+
+    // Map and cast req.query to IpnQuery type
+    const ipnQuery: IpnQuery = {
+      amount: Number(query.amount),
+      bank_tran_id: query.bank_tran_id as string,
+      status: query.status as string,
+      val_id: query.val_id as string,
+      // Add other fields from IpnQuery if needed
+      ...query,
+    };
+
+    // const response = await validateOnlinePaymentService(ipnQuery);
+    const response = await dummyValidateOnlinePaymentService(ipnQuery);
+    sendResponse(res, 200, "Payment validated successfully", response);
+  }
+);
 export {
   cashPaymentConfirmController,
   cashPaymentDeclineController,
   cashPaymentInitController,
   onlinePaymentInitController,
+  validateOnlinePaymentController,
 };

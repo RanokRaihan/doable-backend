@@ -1,10 +1,11 @@
+import { WalletTransactionCategory } from "@prisma/client";
 import axios from "axios";
 import crypto from "crypto";
 import config from "../../config";
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
 import { createTnxId } from "../../utils/createTnxId";
-import { PaymentPayload } from "./payment.interface";
+import { IpnQuery, PaymentPayload } from "./payment.interface";
 import { getDefaultDescription } from "./payment.utils";
 const commissionRate = config.commissionRate;
 
@@ -166,8 +167,23 @@ const cashPaymentConfirmService = async (userId: string, paymentId: string) => {
           paidAt: new Date(),
           payeeConfirmedAt: new Date(),
         },
+        select: {
+          id: true,
+          transactionId: true,
+          paidAt: true,
+          payeeConfirmedAt: true,
+          payerId: true,
+          payeeId: true,
+          amount: true,
+          method: true,
+          status: true,
+          cashStatus: true,
+        },
       });
-
+      await tx.task.update({
+        where: { id: payment.taskId },
+        data: { status: "COMPLETED" },
+      });
       // Check wallet balance
       const wallet = await tx.wallet.findUnique({
         where: { userId: payment.payeeId },
@@ -528,9 +544,143 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
   }
 };
 
+// validate online payment service
+const validateOnlinePaymentService = async (payload: IpnQuery) => {
+  try {
+    if (!payload || !payload.tran_id || !payload.status || !payload.val_id) {
+      throw new AppError(400, "Invalid IPN payload", "INVALID_PAYLOAD", "ipn");
+    }
+    if (payload.status !== "VALID") {
+      throw new AppError(400, "Payment not valid", "PAYMENT_INVALID", "ipn");
+    }
+    const response = await axios({
+      method: "GET",
+      url: `${config.sslcommerz.validationApiUrl}?val_id=${payload.val_id}&store_id=${config.sslcommerz.storeId}&store_passwd=${config.sslcommerz.storePassword}&format=json`,
+    });
+
+    if (
+      response.data.status !== "VALID" &&
+      response.data.status !== "VALIDATED"
+    ) {
+      throw new AppError(
+        400,
+        "Payment validation failed",
+        "PAYMENT_VALIDATION_FAILED",
+        "ipn"
+      );
+    }
+    const paymentRecord = await prisma.payment.findFirst({
+      where: { transactionId: response.data.tran_id },
+      select: {
+        id: true,
+        status: true,
+        amount: true,
+        payeeId: true,
+        commissionAmount: true,
+        taskId: true,
+      },
+    });
+    if (!paymentRecord) {
+      throw new AppError(404, "Payment record not found", "NOT_FOUND", "ipn");
+    }
+    if (paymentRecord.status === "COMPLETED") {
+      return paymentRecord;
+    }
+
+    const finalPayment = await prisma.$transaction(async (tx) => {
+      const updatedPayment = await tx.payment.update({
+        where: { transactionId: response.data.tran_id, status: "PENDING" },
+        data: {
+          status: "COMPLETED",
+          paidAt: new Date(),
+          metadata: response.data,
+          ipnReceivedAt: new Date(),
+          ipnReceived: true,
+        },
+      });
+      // create two wallet transactions: total amount credit to payee, commission debit to payee
+      const wallet = await tx.wallet.findUnique({
+        where: { userId: updatedPayment.payeeId },
+      });
+      if (!wallet) {
+        // TODO: send notification to admin about missing wallet
+        throw new AppError(404, "Wallet not found for payee");
+      }
+      // create a transaction id
+      const tnxID = createTnxId("WTNX");
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          transactionId: tnxID,
+          amount: updatedPayment.amount,
+          type: "CREDIT",
+          category: WalletTransactionCategory.TASK_PAYMENT,
+          refPaymentId: updatedPayment.id,
+          description: getDefaultDescription("TASK_PAYMENT"),
+          balanceAfter: Number(wallet.balance) + Number(updatedPayment.amount),
+          balanceBefore: Number(wallet.balance),
+        },
+      });
+
+      const updatedWallet = await tx.wallet.update({
+        where: { userId: updatedPayment.payeeId },
+        data: { balance: { increment: updatedPayment.amount } },
+      });
+
+      // commission deduction
+      const commissionAmount =
+        Number(updatedPayment.commissionAmount) ||
+        Number(updatedPayment.amount) * commissionRate;
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          transactionId: createTnxId("WTNX"),
+          amount: commissionAmount,
+          type: "DEBIT",
+          category: WalletTransactionCategory.DIRECT_COMMISSION_DEDUCTION,
+          refPaymentId: updatedPayment.id,
+          description: getDefaultDescription("DIRECT_COMMISSION_DEDUCTION"),
+          balanceAfter: Number(updatedWallet.balance) - commissionAmount,
+          balanceBefore: Number(updatedWallet.balance),
+        },
+      });
+
+      // update wallet balance
+      await tx.wallet.update({
+        where: { userId: updatedPayment.payeeId },
+        data: { balance: { decrement: commissionAmount } },
+      });
+      const finalPayment = await tx.payment.update({
+        where: { id: updatedPayment.id },
+        data: { commissionDeducted: true },
+        select: {
+          id: true,
+          status: true,
+          transactionId: true,
+          amount: true,
+          method: true,
+        },
+      });
+      await tx.task.update({
+        where: { id: updatedPayment.taskId },
+        data: { status: "COMPLETED" },
+      });
+      return finalPayment;
+    });
+
+    return finalPayment;
+  } catch (error) {
+    console.error("Error in validateOnlinePaymentService:", error);
+    throw error;
+  }
+};
+
 export {
   cashPaymentConfirmService,
   cashPaymentDeclineService,
   cashPaymentInitService,
   onlinePaymentInitService,
+  validateOnlinePaymentService,
 };
