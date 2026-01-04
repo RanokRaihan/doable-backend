@@ -5,6 +5,9 @@ import {
   cashPaymentConfirmController,
   cashPaymentDeclineController,
   cashPaymentInitController,
+  getAllPaymentMadeController,
+  getAllPaymentReceivedController,
+  getPaymentByIdController,
   onlinePaymentInitController,
   validateOnlinePaymentController,
 } from "./payment.controller";
@@ -36,5 +39,21 @@ router.post(
   onlinePaymentInitController
 );
 router.post("/online/ipn-validate/", validateOnlinePaymentController);
+
+// get payment history for user
+router.get(
+  "/user/payment-made",
+  auth,
+  authorize(["USER"]),
+  getAllPaymentMadeController
+);
+
+router.get(
+  "/user/payment-received",
+  auth,
+  authorize(["USER"]),
+  getAllPaymentReceivedController
+);
+router.get("/:id", auth, authorize(["USER"]), getPaymentByIdController);
 
 export default router;

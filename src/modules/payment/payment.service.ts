@@ -677,10 +677,139 @@ const validateOnlinePaymentService = async (payload: IpnQuery) => {
   }
 };
 
+// get all payment made by user
+const getAllPaymentMadeService = async (userId: string) => {
+  try {
+    const paymentsMade = await prisma.payment.findMany({
+      where: { payerId: userId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        transactionId: true,
+        amount: true,
+        method: true,
+        status: true,
+        cashStatus: true,
+        paidAt: true,
+        createdAt: true,
+        payee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        taskId: true,
+      },
+    });
+    if (!paymentsMade || paymentsMade.length === 0) {
+      throw new AppError(404, "No payments made found");
+    }
+    return paymentsMade;
+  } catch (error) {
+    console.error("Error in getAllPaymentMadeService:", error);
+    throw error;
+  }
+};
+
+// get all payment received by user
+const getAllPaymentReceivedService = async (userId: string) => {
+  try {
+    const paymentsReceived = await prisma.payment.findMany({
+      where: { payeeId: userId, status: "COMPLETED" },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        transactionId: true,
+        amount: true,
+        method: true,
+        status: true,
+        cashStatus: true,
+        paidAt: true,
+        payer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        createdAt: true,
+        taskId: true,
+      },
+    });
+    if (!paymentsReceived || paymentsReceived.length === 0) {
+      throw new AppError(404, "No received payments found");
+    }
+    return paymentsReceived;
+  } catch (error) {
+    console.error("Error in getAllPaymentReceivedService:", error);
+    throw error;
+  }
+};
+const getPaymentByIdService = async (paymentId: string, userId: string) => {
+  try {
+    const payment = await prisma.payment.findFirst({
+      where: {
+        id: paymentId,
+        OR: [{ payerId: userId }, { payeeId: userId }],
+      },
+
+      select: {
+        id: true,
+        transactionId: true,
+        amount: true,
+        method: true,
+        status: true,
+        cashStatus: true,
+        paidAt: true,
+        createdAt: true,
+
+        task: {
+          select: {
+            title: true,
+            category: true,
+            location: true,
+            status: true,
+          },
+        },
+
+        payer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+
+        payee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        failedAt: true,
+        failureReason: true,
+        commissionAmount: true,
+        commissionDeducted: true,
+      },
+    });
+    if (!payment) {
+      throw new AppError(404, "Payment not found", "NOT_FOUND", "payment");
+    }
+    return payment;
+  } catch (error) {
+    console.error("Error in getPaymentDetailsService:", error);
+    throw error;
+  }
+};
 export {
   cashPaymentConfirmService,
   cashPaymentDeclineService,
   cashPaymentInitService,
+  getAllPaymentMadeService,
+  getAllPaymentReceivedService,
+  getPaymentByIdService,
   onlinePaymentInitService,
   validateOnlinePaymentService,
 };
