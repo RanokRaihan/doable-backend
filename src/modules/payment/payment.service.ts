@@ -733,6 +733,8 @@ const getAllPaymentReceivedService = async (userId: string) => {
             email: true,
           },
         },
+        commissionAmount: true,
+        commissionDeducted: true,
         createdAt: true,
         taskId: true,
       },
