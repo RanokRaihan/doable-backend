@@ -271,7 +271,7 @@ const requestTaskRevisionService = async (taskId: string, userId: string) => {
     if (task.status !== "PENDING_REVIEW") {
       throw new AppError(
         400,
-        "Task is not pending review!cannot request revision"
+        "Revision can only be requested for tasks pending review!"
       );
     }
 
