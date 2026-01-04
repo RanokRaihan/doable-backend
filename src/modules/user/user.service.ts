@@ -33,17 +33,29 @@ export const createUserService = async (payload: CreateUserInput) => {
       password: hashedPassword,
     };
     //create user with prisma
-    const newUser = await prisma.user.create({
-      data: userData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: userData,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      await tx.wallet.create({
+        data: {
+          userId: newUser.id,
+        },
+      });
+
+      return newUser;
     });
+
+    const newUser = result;
     return newUser;
   } catch (error) {
     throw error;
@@ -71,7 +83,7 @@ export const getAllUsersService = async () => {
 export const getUserByEmailService = async (email: string) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email, isDeleted: false },
       select: {
         id: true,
         email: true,

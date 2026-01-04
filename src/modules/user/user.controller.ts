@@ -1,10 +1,5 @@
 import { RequestHandler } from "express";
-import {
-  AppError,
-  asyncHandler,
-  ResponseHandler,
-  sendResponse,
-} from "../../utils";
+import { AppError, asyncHandler, sendResponse } from "../../utils";
 import {
   createUserService,
   getAllUsersService,
@@ -23,7 +18,7 @@ export const createUserController: RequestHandler = asyncHandler(
     if (!newUser) {
       throw new AppError(500, "Failed to create user!");
     }
-    ResponseHandler.created(res, "User created successfully!", newUser);
+    sendResponse(res, 201, "User created successfully!", newUser);
   }
 );
 

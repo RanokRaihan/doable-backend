@@ -33,10 +33,16 @@ enum Provider {
 enum TaskStatus {
   DRAFT
   OPEN
+  ASSIGNED
   IN_PROGRESS
+  PENDING_REVIEW
+  PAYMENT_PROCESSING
   COMPLETED
+  PAYMENT_FAILED
+  DISPUTED
   CANCELLED
   EXPIRED
+  REFUNDED
 }
 
 enum TaskPriority {
@@ -63,7 +69,6 @@ enum ApplicationStatus {
   APPROVED
   REJECTED
   WITHDRAWN
-  CANCELLED
 }
 
 model User {
@@ -104,6 +109,9 @@ model User {
   receivedReviews  Review[]      @relation("ReviewRecipient")
   sentMessages     Message[]     @relation("MessageSender")
   receivedMessages Message[]     @relation("MessageRecipient")
+  paymentsMade     Payment[]     @relation("PaymentPayer")
+  paymentsReceived Payment[]     @relation("PaymentPayee")
+  wallet           Wallet?
 
   @@index([isDeleted])
   @@index([createdAt])
@@ -126,7 +134,7 @@ model Task {
   baseCompensation   Decimal      @db.Decimal(10, 2)
   agreedCompensation Decimal?     @db.Decimal(10, 2)
   scheduledAt        DateTime
-  estimatedDuration  Int?         @db.SmallInt // in minutes
+  estimatedDuration  Int?         @db.SmallInt // in minutes TODO: change to required
   expiresAt          DateTime?
 
   // Approved application relationship
@@ -144,7 +152,9 @@ model Task {
   applications Application[]
   reviews      Review[]
   messages     Message[]
-  Image        Image[]
+  images       Image[]
+  payments     Payment[]
+  commissions  CommissionDue[]
 
   @@index([postedById])
   @@index([status])
@@ -287,4 +297,178 @@ model Location {
   @@index([latitude, longitude])
   @@index([isActive])
   @@map("locations")
+}
+
+// Payment & Wallet System
+enum PaymentMethod {
+  ONLINE
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum WalletTransactionCategory {
+  TASK_PAYMENT
+  DIRECT_COMMISSION_DEDUCTION
+  DUE_COMMISSION_DEDUCTION
+  BONUS
+  REFUND
+  WITHDRAWAL
+}
+
+enum CommissionStatus {
+  DUE
+  PAID
+  CANCELLED
+}
+
+enum CashStatus {
+  PAYER_CLAIMED
+  PAYEE_CONFIRMED
+  PAYEE_DISPUTED
+  ADMIN_VERIFIED
+}
+
+enum PaymentType {
+  INITIAL
+  REFUND
+  RETRY
+  TIP
+  ADJUSTMENT
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  transactionId String        @unique
+  taskId        String
+  task          Task          @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  payerId       String
+  payer         User          @relation("PaymentPayer", fields: [payerId], references: [id], onDelete: Restrict)
+  payeeId       String
+  payee         User          @relation("PaymentPayee", fields: [payeeId], references: [id], onDelete: Restrict)
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  type          PaymentType   @default(INITIAL)
+  status        PaymentStatus @default(PENDING)
+  cashStatus    CashStatus?
+
+  commissionRate       Decimal @default(0.15) @db.Decimal(4, 2)
+  commissionAmount     Decimal @db.Decimal(10, 2)
+  commissionDeducted   Boolean @default(false)
+  gatewayTransactionId String? // SSLCommerz's transaction ID
+  gatewayResponse      Json?
+  metadata             Json?
+  failureReason        String? @db.Text
+
+  // Payment session tracking
+  sessionToken      String?   @unique @db.VarChar(255)
+  sessionExpiresAt  DateTime? // Payment session expiry (30 min)
+  // IPN tracking
+  ipnReceived       Boolean   @default(false)
+  ipnReceivedAt     DateTime?
+  // timestamps for various payment stages
+  posterConfirmedAt DateTime?
+  payeeConfirmedAt  DateTime?
+  payeeDeclinedAt   DateTime?
+  paidAt            DateTime?
+  failedAt          DateTime?
+  refundedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Indexes
+  @@index([transactionId])
+  @@index([type])
+  @@index([method])
+  @@index([status])
+  @@index([cashStatus])
+  @@index([payerId])
+  @@index([payeeId])
+  @@index([taskId])
+  @@index([paidAt])
+  @@index([createdAt])
+  @@index([payeeId, status])
+  @@index([method, status])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  balance   Decimal  @default(0.00) @db.Decimal(10, 2)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  transactions WalletTransaction[]
+  commissions  CommissionDue[]
+
+  @@map("wallets")
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model WalletTransaction {
+  id                 String                    @id @default(cuid())
+  transactionId      String                    @unique
+  walletId           String
+  wallet             Wallet                    @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  amount             Decimal                   @db.Decimal(10, 2)
+  type               WalletTransactionType
+  category           WalletTransactionCategory
+  status             WalletTransactionStatus   @default(COMPLETED)
+  refPaymentId       String?
+  refCommissionDueId String?
+  description        String?                   @db.VarChar(255)
+  metadata           Json?
+  balanceBefore      Decimal?                  @db.Decimal(10, 2)
+  balanceAfter       Decimal?                  @db.Decimal(10, 2)
+  createdAt          DateTime                  @default(now())
+
+  @@index([transactionId])
+  @@index([walletId])
+  @@index([category])
+  @@index([status])
+  @@index([refPaymentId])
+  @@index([refCommissionDueId])
+  @@index([createdAt])
+  @@map("wallet_transactions")
+}
+
+model CommissionDue {
+  id             String           @id @default(cuid())
+  walletId       String
+  wallet         Wallet           @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  taskId         String
+  task           Task             @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  amount         Decimal          @db.Decimal(10, 2)
+  status         CommissionStatus @default(DUE)
+  paidAt         DateTime?
+  paidViaPayment String? // manual payment reference
+  paidViaTxn     String? // auto deduction wallet transaction reference
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([walletId])
+  @@index([status])
+  @@index([taskId])
+  @@map("commission_dues")
 }

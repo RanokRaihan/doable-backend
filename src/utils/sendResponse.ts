@@ -1,4 +1,5 @@
 import { Response } from "express";
+import config from "../config";
 import {
   IErrorOptions,
   IErrorResponse,
@@ -8,9 +9,23 @@ import {
   ISuccessResponse,
 } from "../interface/global.interface";
 
-/**
- * Enhanced response utility with better type safety and error handling
- */
+// Legacy support - keeping the original function signature for backward compatibility
+export const sendResponse = <T>(
+  res: Response,
+  statusCode: number,
+  message: string,
+  data: T,
+  meta?: IPagination
+): Response<ISuccessResponse<T>> => {
+  const options: ISuccessOptions = {};
+  if (meta) {
+    options.meta = meta;
+  }
+  return ResponseHandler.success(res, statusCode, message, data, options);
+};
+
+//  Enhanced response utility with better type safety and error handling
+
 class ResponseHandler {
   /**
    * Send a success response
@@ -72,7 +87,7 @@ class ResponseHandler {
       response.error.errorSources = options.errorSources;
     }
 
-    if (options?.includeStack && process.env.NODE_ENV === "development") {
+    if (options?.includeStack && config.nodeEnv === "development") {
       const stack = new Error().stack;
       if (stack) {
         response.error.stack = stack;
@@ -349,21 +364,6 @@ class ResponseHandler {
     return this.error(res, 503, message, options);
   }
 }
-
-// Legacy support - keeping the original function signature for backward compatibility
-export const sendResponse = <T>(
-  res: Response,
-  statusCode: number,
-  message: string,
-  data: T,
-  meta?: IPagination
-): Response<ISuccessResponse<T>> => {
-  const options: ISuccessOptions = {};
-  if (meta) {
-    options.meta = meta;
-  }
-  return ResponseHandler.success(res, statusCode, message, data, options);
-};
 
 // Export the new response handler class
 export default ResponseHandler;

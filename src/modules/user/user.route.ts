@@ -15,7 +15,7 @@ router.post(
   validateRequest(createUserSchema),
   createUserController
 );
-// GET /users - Get all users
+// Get all users todo: this is for testing purpose only, remove it later
 router.get("/", getAllUsersController);
 
 // // GET /users/:id - Get user by ID
