@@ -215,6 +215,10 @@ const cashPaymentConfirmService = async (userId: string, paymentId: string) => {
             balanceBefore: Number(wallet.balance),
           },
         });
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { commissionDeducted: true },
+        });
       } else {
         // Create commission due record
         await tx.commissionDue.create({
@@ -257,13 +261,21 @@ const cashPaymentDeclineService = async (userId: string, paymentId: string) => {
       throw new AppError(400, "Payment is already declined!");
     }
     // Business logic for confirming cash payment
-    const updatedPayment = await prisma.payment.update({
-      where: { id: paymentId },
-      data: { cashStatus: "PAYEE_DISPUTED", payeeDeclinedAt: new Date() },
+    const updatedPayment = await prisma.$transaction(async (tx) => {
+      const updatedPayment = await tx.payment.update({
+        where: { id: paymentId },
+        data: { cashStatus: "PAYEE_DISPUTED", payeeDeclinedAt: new Date() },
+      });
+      await tx.task.update({
+        where: { id: payment.taskId },
+        data: { status: "DISPUTED" },
+      });
+      return updatedPayment;
     });
+
     return updatedPayment;
   } catch (error) {
-    console.error("Error in cashPaymentConfirmService:", error);
+    console.error("Error in cashPaymentDeclineService:", error);
     throw error;
   }
 };
