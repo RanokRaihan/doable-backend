@@ -273,7 +273,7 @@ const approveApplicationService = async (
       await tx.task.update({
         where: { id: application.taskId },
         data: {
-          status: "IN_PROGRESS",
+          status: "ASSIGNED",
           approvedApplicationId: applicationId,
           agreedCompensation: application.proposedCompensation,
         },
