@@ -121,16 +121,17 @@ const getCurrentUserService = async (userId: string) => {
   try {
     const user = await prisma.user.findFirst({
       where: { id: userId, isDeleted: false },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        profileStatus: true,
-        isDeleted: true,
-        emailVerified: true,
+      omit: {
+        password: true,
+        passwordResetToken: true,
+        passwordResetAt: true,
+        failedLoginCount: true,
+        lockedAt: true,
+        deletedAt: true,
+        deletedBy: true,
         createdAt: true,
         updatedAt: true,
+        isDeleted: true,
       },
     });
 
