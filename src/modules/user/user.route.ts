@@ -30,8 +30,7 @@ router.post(
   validateRequest(createUserSchema),
   createUserController
 );
-// get user public profile by id
-router.get("/:id", getUserByIdController);
+
 // get user profile
 router.get("/my-profile", auth, authorize(["USER"]), getUserProfileController);
 router.patch(
@@ -66,4 +65,6 @@ router.delete(
   authorize(["USER"]),
   deleteAccountController
 );
+// get user public profile by id
+router.get("/:id", getUserByIdController);
 export default router;

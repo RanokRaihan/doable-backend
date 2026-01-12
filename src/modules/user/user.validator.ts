@@ -40,10 +40,15 @@ export const updateUserSchema = z.object({
       phone: z
         .string()
         .regex(/^01\d{9}$/, {
-          message: "Phone must be 11 digits and start with 01",
+          message:
+            "Phone must be 11 digits, start with 01 and contain only numbers",
         })
         .optional(),
-      bio: z.string().optional(),
+      bio: z
+        .string()
+        .trim()
+        .max(500, { message: "Bio must be less than 500 characters" })
+        .optional(),
     })
     .strict(),
 });
@@ -61,7 +66,8 @@ export const completeUserProfileSchema = z.object({
         .min(1, { message: "Address is required" })
         .max(255, { message: "Address must be less than 255 characters" }),
       phone: z.string().regex(/^01\d{9}$/, {
-        message: "Phone must be 11 digits and start with 01",
+        message:
+          "Phone must be 11 digits, start with 01 and contain only numbers",
       }),
       bio: z
         .string()
