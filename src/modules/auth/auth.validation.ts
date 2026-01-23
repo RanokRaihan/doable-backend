@@ -39,10 +39,26 @@ const resetPasswordValidationSchema = z.object({
     })
     .strict(),
 });
+const sendVerificationEmailSchema = z.object({
+  body: z
+    .object({
+      email: z.email("Invalid email format"),
+    })
+    .strict(),
+});
+const verifyEmailValidationSchema = z.object({
+  body: z
+    .object({
+      token: z.string().min(1, "Token is required"),
+    })
+    .strict(),
+});
 
 export {
   changePasswordValidationSchema,
   forgotPasswordValidationSchema,
   loginValidationSchema,
   resetPasswordValidationSchema,
+  sendVerificationEmailSchema,
+  verifyEmailValidationSchema,
 };

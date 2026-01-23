@@ -5,4 +5,13 @@ const userSenitiveFields = {
   deletedBy: true,
 };
 
-export { userSenitiveFields };
+const updateableUserFields = [
+  "name",
+  "dateOfBirth",
+  "gender",
+  "address",
+  "phone",
+  "bio",
+];
+
+export { updateableUserFields, userSenitiveFields };

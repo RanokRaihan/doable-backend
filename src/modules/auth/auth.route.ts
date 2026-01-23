@@ -9,8 +9,14 @@ import {
   logoutController,
   refreshTokenController,
   resetPasswordController,
+  sendVerificationController,
+  verifyEmailController,
 } from "./auth.controller";
-import { loginValidationSchema } from "./auth.validation";
+import {
+  loginValidationSchema,
+  sendVerificationEmailSchema,
+  verifyEmailValidationSchema,
+} from "./auth.validation";
 
 const router = Router();
 
@@ -21,5 +27,16 @@ router.get("/current-user", auth, getCurrentUserController);
 router.post("/update-password", auth, changePasswordController);
 router.post("/forgot-password", forgotPasswordController);
 router.post("/reset-password", resetPasswordController);
+// email verfication
+router.post(
+  "/send-verification-email",
+  validateRequest(sendVerificationEmailSchema),
+  sendVerificationController
+);
+router.post(
+  "/verify-email",
+  validateRequest(verifyEmailValidationSchema),
+  verifyEmailController
+);
 
 export default router;

@@ -5,6 +5,7 @@ import config from "../../config";
 import { prisma } from "../../config/database";
 import { AppError, sendEmail } from "../../utils";
 import { createToken } from "../../utils/createToken";
+import { getTimeRemaining } from "../../utils/time";
 import { IJwtPayload, UserLoginInput } from "./auth.interface";
 
 const {
@@ -121,16 +122,17 @@ const getCurrentUserService = async (userId: string) => {
   try {
     const user = await prisma.user.findFirst({
       where: { id: userId, isDeleted: false },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        profileStatus: true,
-        isDeleted: true,
-        emailVerified: true,
+      omit: {
+        password: true,
+        passwordResetToken: true,
+        passwordResetAt: true,
+        failedLoginCount: true,
+        lockedAt: true,
+        deletedAt: true,
+        deletedBy: true,
         createdAt: true,
         updatedAt: true,
+        isDeleted: true,
       },
     });
 
@@ -290,7 +292,7 @@ const forgotPasswordService = async (email: string) => {
       subject: "Password Reset Request",
       html: `
         <p>You requested a password reset. Click the link below to reset your password:</p>
-        <a href="https://your-frontend-app.com/reset-password?token=${resetToken}&email=${user.email}">Reset Password</a>
+        <a href="${config.frontendUrl}/reset-password?token=${resetToken}&email=${user.email}">Reset Password</a>
         <p>This link will expire in 15 minutes.</p>
         <p>If you did not request this, please ignore this email.</p>
       `,
@@ -432,6 +434,134 @@ const refreshAuthTokenService = async (token: string) => {
   }
 };
 
+// email verification services
+const sendVerificationEmailService = async (email: string) => {
+  try {
+    const user = await prisma.user.findFirst({
+      where: { email: email.toLowerCase().trim(), isDeleted: false },
+    });
+    if (!user) {
+      throw new AppError(404, "User not found", "NOT_FOUND");
+    }
+    if (user.emailVerified) {
+      throw new AppError(400, "Email is already verified", "ALREADY_VERIFIED");
+    }
+    if (user.provider !== "CREDENTIALS") {
+      throw new AppError(
+        400,
+        "Email verification not available for this account type",
+        "OPERATION_NOT_ALLOWED"
+      );
+    }
+    if (
+      user.emailVerificationToken &&
+      user.emailVerificationSentAt &&
+      user.emailVerificationSentAt > new Date(Date.now() - 5 * 60 * 1000)
+    ) {
+      const { minutes, seconds } = getTimeRemaining(
+        new Date(user.emailVerificationSentAt.getTime() + 5 * 60 * 1000)
+      );
+
+      throw new AppError(
+        400,
+        `A verification email has already been sent. Please check your inbox. You can request a new one after ${minutes} minutes and ${seconds} seconds`,
+        "ALREADY_SENT"
+      );
+    }
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
+    // Save to DB with 1 hour expiry
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationToken: hashedToken,
+        emailVerificationSentAt: new Date(),
+        emailVerificationExpiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour expiry
+      },
+    });
+    // Send verification email
+    await sendEmail({
+      to: user.email,
+      subject: "Email Verification",
+      html: `
+        <p>Please verify your email by clicking the link below:</p>
+        <a href="${config.frontendUrl}/verify-email?token=${verificationToken}">Verify Email</a>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you did not create an account, please ignore this email.</p>
+      `,
+    });
+    if (config.nodeEnv === "development") {
+      console.log(`Verification token for ${email}: ${verificationToken}`);
+    }
+  } catch (error) {
+    console.error("Error in sendVerificationEmailService:", error);
+    throw error;
+  }
+};
+
+// Verify email with token
+const verifyEmailService = async (rawToken: string) => {
+  try {
+    // Hash the incoming token
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+    // Find user with matching token
+    const user = await prisma.user.findFirst({
+      where: {
+        emailVerificationToken: hashedToken,
+        emailVerificationExpiresAt: {
+          gt: new Date(), // Token not expired
+        },
+        isDeleted: false,
+      },
+    });
+
+    // Token not found or expired
+    if (!user) {
+      throw new AppError(
+        400,
+        "Invalid or expired verification link",
+        "TOKEN_INVALID"
+      );
+    }
+
+    // Already verified
+    if (user.emailVerified) {
+      throw new AppError(400, "Email already verified", "ALREADY_VERIFIED");
+    }
+
+    // Update user - mark as verified and clear token
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null,
+        emailVerificationSentAt: null,
+        emailVerificationExpiresAt: null,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        emailVerified: true,
+      },
+    });
+
+    return updatedUser;
+  } catch (error) {
+    console.error("Error in verifyEmailService:", error);
+    throw error;
+  }
+};
+
 // Exports
 export {
   changeUserPasswordService,
@@ -442,4 +572,6 @@ export {
   refreshAuthTokenService,
   resetFailedLoginCount,
   resetPasswordService,
+  sendVerificationEmailService,
+  verifyEmailService,
 };
