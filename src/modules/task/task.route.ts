@@ -14,7 +14,11 @@ import {
   requestTaskRevisionController,
   updateTaskController,
 } from "./task.controller";
-import { createTaskSchema, updateTaskSchema } from "./task.validator";
+import {
+  createTaskSchema,
+  getAllTasksSchema,
+  updateTaskSchema,
+} from "./task.validator";
 
 // Defines task-related API routes
 const router = Router();
@@ -24,20 +28,20 @@ router.post(
   auth,
   authorize([UserRole.USER]),
   validateRequest(createTaskSchema),
-  createTaskController
+  createTaskController,
 );
 router.patch(
   "/update-task/:id",
   auth,
   authorize([UserRole.USER]),
   validateRequest(updateTaskSchema),
-  updateTaskController
+  updateTaskController,
 );
 router.delete(
   "/delete-task/:id",
   auth,
   authorize([UserRole.USER]),
-  deleteTaskController
+  deleteTaskController,
 );
 
 //task completion routes
@@ -46,14 +50,14 @@ router.patch(
   "/:taskId/mark-in-progress",
   auth,
   authorize([UserRole.USER]),
-  markTaskAsInProgressController
+  markTaskAsInProgressController,
 );
 // mark completed. (applicant marks task as completed)
 router.patch(
   "/:taskId/mark-completed",
   auth,
   authorize([UserRole.USER]),
-  markTaskCompletedController
+  markTaskCompletedController,
 );
 
 // approve completion. (task poster approves completed task)
@@ -61,7 +65,7 @@ router.patch(
   "/:taskId/approve-completion",
   auth,
   authorize([UserRole.USER]),
-  approveTaskCompletionController
+  approveTaskCompletionController,
 );
 
 // request revision. (task poster requests revision)
@@ -69,11 +73,11 @@ router.patch(
   "/:taskId/request-revision",
   auth,
   authorize([UserRole.USER]),
-  requestTaskRevisionController
+  requestTaskRevisionController,
 );
 
 // public routes
-router.get("/all-task", getTasksController);
+router.get("/all-task", validateRequest(getAllTasksSchema), getTasksController);
 router.get("/:id", getTaskByIdController);
 
 // Export the router to be used in the main application

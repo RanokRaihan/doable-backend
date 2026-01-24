@@ -89,11 +89,14 @@ model User {
   bio             String?           @db.Text
 
   // Security & Authentication
-  lastLoginAt        DateTime?
-  passwordResetToken String?   @db.VarChar(255)
-  passwordResetAt    DateTime?
-  failedLoginCount   Int       @default(0) @db.SmallInt
-  lockedAt           DateTime?
+  lastLoginAt                DateTime?
+  passwordResetToken         String?   @db.VarChar(255)
+  passwordResetAt            DateTime?
+  emailVerificationToken     String?   @db.VarChar(255)
+  emailVerificationSentAt    DateTime?
+  emailVerificationExpiresAt DateTime?
+  failedLoginCount           Int       @default(0) @db.SmallInt
+  lockedAt                   DateTime?
 
   // Soft delete & Audit
   isDeleted Boolean   @default(false)

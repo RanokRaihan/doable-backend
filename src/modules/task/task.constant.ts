@@ -21,8 +21,15 @@ const taskSensitiveFieldsApplicant = {
   agreedCompensation: true,
 };
 
+const TaskSearchFields = ["title", "description", "location"];
+const taskFilterableFields = ["category", "status", "priority"];
+const taskSortableFields = ["createdAt", "updatedAt", "title"];
+
 export {
+  taskFilterableFields,
+  TaskSearchFields,
   taskSensitiveFieldsApplicant,
   taskSensitiveFieldsOwner,
   taskSensitiveFieldsPublic,
+  taskSortableFields,
 };

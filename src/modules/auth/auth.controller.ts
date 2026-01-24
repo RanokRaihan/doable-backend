@@ -1,6 +1,11 @@
 import { RequestHandler } from "express";
 import config from "../../config";
-import { asyncHandler, ResponseHandler } from "../../utils";
+import {
+  AppError,
+  asyncHandler,
+  ResponseHandler,
+  sendResponse,
+} from "../../utils";
 import { UserLoginInput } from "./auth.interface";
 import {
   changeUserPasswordService,
@@ -9,6 +14,8 @@ import {
   loginUserService,
   refreshAuthTokenService,
   resetPasswordService,
+  sendVerificationEmailService,
+  verifyEmailService,
 } from "./auth.service";
 
 // Login controller
@@ -152,6 +159,32 @@ const refreshTokenController: RequestHandler = asyncHandler(
   }
 );
 
+// email verification controllers
+const sendVerificationController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const email = req.body?.email;
+
+    if (!email) {
+      throw new AppError(400, "Email is required to send verification email");
+    }
+
+    // Call service to send verification email
+    await sendVerificationEmailService(email);
+    sendResponse(res, 200, "Verification email sent successfully", null);
+  }
+);
+
+const verifyEmailController: RequestHandler = asyncHandler(async (req, res) => {
+  const { token } = req.body;
+  if (!token) {
+    throw new AppError(400, "Verification token is required");
+  }
+  // Call service to verify email
+  const verifiedUser = await verifyEmailService(token);
+
+  sendResponse(res, 200, "Email verified successfully", verifiedUser);
+});
+
 // Export all controllers
 export {
   changePasswordController,
@@ -161,4 +194,6 @@ export {
   logoutController,
   refreshTokenController,
   resetPasswordController,
+  sendVerificationController,
+  verifyEmailController,
 };
