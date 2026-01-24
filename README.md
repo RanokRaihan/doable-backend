@@ -1,4 +1,4 @@
-# 🚀 Get It Done - Backend API
+# Get It Done - Backend API
 
 A modern, scalable backend API for the **Get It Done** task management platform built with **Node.js**, **TypeScript**, **Express**, and **Prisma**.
 
@@ -7,164 +7,57 @@ A modern, scalable backend API for the **Get It Done** task management platform 
 ![Express](https://img.shields.io/badge/Express-5.x-lightgrey)
 ![Prisma](https://img.shields.io/badge/Prisma-6.x-purple)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-blue)
-![License](https://img.shields.io/badge/License-ISC-yellow)
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
-- [Database Setup](#database-setup)
-- [API Documentation](#api-documentation)
+- [API Endpoints](#api-endpoints)
 - [Project Structure](#project-structure)
 - [Development](#development)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
-- [License](#license)
 
-## 🎯 Overview
+## Overview
 
-**Get It Done** is a comprehensive task management platform that connects users who need tasks completed with skilled individuals who can help. The backend provides robust APIs for user management, task posting, application handling, messaging, and more.
+**Get It Done** is a task management marketplace that connects users who need tasks completed with skilled individuals who can help. The backend provides robust APIs for authentication, task management, applications, payments, and wallet operations.
 
-### Key Capabilities
+## Features
 
-- **User Authentication & Authorization** with JWT
-- **Task Management** with categories, priorities, and status tracking
-- **Application System** for task assignments
-- **Review & Rating System** for user feedback
-- **Real-time Messaging** between users
-- **File Upload** for task images and documents
-- **Location-based** task filtering and search
-- **Admin Dashboard** for platform management
+### Core Functionality
 
-## ✨ Features
+- ✅ **JWT Authentication** with access & refresh tokens
+- ✅ **User Registration & Management** with email verification
+- ✅ **Task Management** - Create, edit, list with filters, search & pagination
+- ✅ **Application System** - Apply for tasks, approve/reject, withdraw
+- ✅ **Task Completion Flow** - Mark in-progress, completed, request revisions
+- ✅ **Payment System** - Cash & online payments via SSLCommerz
+- ✅ **Wallet Management** - Track balance, transactions, and commission dues
+- ✅ **Role-based Access Control** - User, Admin, Moderator roles
+- ✅ **Security** - Account locking, password reset, input validation with Zod
 
-### 🔐 Authentication & Security
+## Tech Stack
 
-- **JWT-based Authentication** with refresh tokens
-- **Role-based Access Control** (User, Admin, Moderator)
-- **Account Security** with login attempt tracking and account locking
-- **Password Reset** functionality with secure tokens
-- **Input Validation** with Zod schemas
-- **Rate Limiting** and CORS protection
+- **Runtime**: Node.js 18.x
+- **Language**: TypeScript 5.x
+- **Framework**: Express.js 5.x
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: JWT (jsonwebtoken)
+- **Validation**: Zod
+- **Password Hashing**: bcryptjs
+- **Email**: Nodemailer
+- **Payment Gateway**: SSLCommerz
 
-### 👥 User Management
+## Getting Started
 
-- **User Registration & Login** with multiple providers
-- **Profile Management** with detailed user information
-- **Email Verification** system
-- **User Preferences** and settings
-- **Soft Delete** functionality for data integrity
+### Prerequisites
 
-### 📝 Task Management
+- Node.js 18.x or higher
+- PostgreSQL 12+
+- npm or yarn
 
-- **CRUD Operations** for tasks
-- **Task Categories** (Delivery, Cleaning, Repair, etc.)
-- **Priority Levels** (Low, Medium, High, Urgent)
-- **Status Tracking** (Draft, Open, In Progress, Completed, etc.)
-- **Location-based** task posting
-- **Image Upload** for task details
-- **Compensation Management** with base and agreed amounts
-
-### 📱 Application System
-
-- **Task Applications** with proposals
-- **Application Status** tracking
-- **Approval Workflow** for task assignments
-- **Application History** and management
-
-### ⭐ Review & Rating
-
-- **Bidirectional Reviews** between users
-- **Rating System** (1-5 stars)
-- **Review Comments** and feedback
-- **Public/Private** review options
-
-### 💬 Messaging
-
-- **Real-time Messaging** between users
-- **Thread Support** for organized conversations
-- **Message Status** tracking (read/unread)
-- **Task-specific** messaging
-
-### 🔧 Admin Features
-
-- **User Management** dashboard
-- **Task Moderation** capabilities
-- **Platform Analytics** and reporting
-- **Content Management** tools
-
-## 🛠 Tech Stack
-
-### **Backend Core**
-
-- **Node.js** 18.x - Runtime environment
-- **TypeScript** 5.x - Type safety and development experience
-- **Express.js** 5.x - Web framework
-- **Prisma** 6.x - Database ORM and migration tool
-
-### **Database & Storage**
-
-- **PostgreSQL** - Primary database
-- **Prisma Schema** - Database modeling and migrations
-
-### **Authentication & Security**
-
-- **JWT** (jsonwebtoken) - Authentication tokens
-- **bcryptjs** - Password hashing
-- **Zod** - Input validation and type safety
-- **CORS** - Cross-origin resource sharing
-
-### **Development Tools**
-
-- **ts-node-dev** - Development server with hot reload
-- **Prisma CLI** - Database management
-- **ESLint & Prettier** - Code quality and formatting
-
-### **Additional Libraries**
-
-- **Nodemailer** - Email service integration
-- **crypto-js** - Cryptographic utilities
-- **dotenv** - Environment variable management
-
-## 🏗 Architecture
-
-### **Layered Architecture**
-
-```
-┌─────────────────┐
-│   Controllers   │ ← HTTP Request/Response handling
-├─────────────────┤
-│    Services     │ ← Business logic and data processing
-├─────────────────┤
-│   Repositories  │ ← Data access layer (Prisma)
-├─────────────────┤
-│    Database     │ ← PostgreSQL with Prisma
-└─────────────────┘
-```
-
-### **Key Principles**
-
-- **Separation of Concerns** - Clear layer responsibilities
-- **Single Responsibility** - Each module has one purpose
-- **Dependency Injection** - Loosely coupled components
-- **Error Handling** - Comprehensive error management
-- **Type Safety** - Full TypeScript implementation
-
-## 🚀 Getting Started
-
-### **Prerequisites**
-
-- **Node.js** 18.x or higher
-- **npm** or **yarn** package manager
-- **PostgreSQL** database
-- **Git** for version control
-
-### **Installation**
+### Installation
 
 1. **Clone the repository**
 
@@ -179,24 +72,17 @@ A modern, scalable backend API for the **Get It Done** task management platform 
    npm install
    ```
 
-3. **Environment setup**
+3. **Setup environment variables**
 
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
    ```
 
-4. **Database setup**
+4. **Setup database**
 
    ```bash
-   # Generate Prisma client
-   npx prisma generate
-
-   # Run database migrations
    npx prisma migrate deploy
-
-   # Optional: Seed database
-   npx prisma db seed
+   npx prisma generate
    ```
 
 5. **Start development server**
@@ -204,181 +90,148 @@ A modern, scalable backend API for the **Get It Done** task management platform 
    npm run dev
    ```
 
-The server will start on `http://localhost:5000` (or your configured PORT).
+Server will run on `http://localhost:5000`
 
-## 🔧 Environment Variables
+## Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
+Create a `.env` file with the following:
 
 ```bash
-# Server Configuration
+# Server
 PORT=5000
 NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
 
 # Database
-DATABASE_URL="postgresql://username:password@localhost:5432/getitdone_db"
+DATABASE_URL=postgresql://username:password@localhost:5432/getitdone_db
 
-# JWT Configuration
-JWT_ACCESS_SECRET=your_super_secret_access_key_here
-JWT_REFRESH_SECRET=your_super_secret_refresh_key_here
-JWT_ACCESS_EXPIRES_IN=15m
+# JWT
+JWT_ACCESS_SECRET=your_super_secret_access_key
+JWT_REFRESH_SECRET=your_super_secret_refresh_key
+JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
-# Email Configuration (Optional)
+# Email (Nodemailer)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
 
-# File Upload (Optional)
-UPLOAD_PATH=./uploads
-MAX_FILE_SIZE=5MB
+# Payment Gateway (SSLCommerz)
+SSLCOMMERZ_STORE_ID=your_store_id
+SSLCOMMERZ_STORE_PASSWORD=your_store_password
+SSLCOMMERZ_BASE_URL=https://sandbox.sslcommerz.com
 
-# Rate Limiting
-RATE_LIMIT_WINDOW=15m
-RATE_LIMIT_MAX=100
-
-# CORS Settings
-CORS_ORIGIN=http://localhost:3000
+# Commission (as decimal: 0.15 = 15%)
+COMMISSION_RATE=0.15
 ```
 
-### **Environment Variables Description**
+## API Endpoints
 
-| Variable                 | Description                          | Required |
-| ------------------------ | ------------------------------------ | -------- |
-| `PORT`                   | Server port number                   | ✅       |
-| `NODE_ENV`               | Environment (development/production) | ✅       |
-| `DATABASE_URL`           | PostgreSQL connection string         | ✅       |
-| `JWT_ACCESS_SECRET`      | Secret for access tokens             | ✅       |
-| `JWT_REFRESH_SECRET`     | Secret for refresh tokens            | ✅       |
-| `JWT_ACCESS_EXPIRES_IN`  | Access token expiry time             | ✅       |
-| `JWT_REFRESH_EXPIRES_IN` | Refresh token expiry time            | ✅       |
-| `SMTP_*`                 | Email service configuration          | ❌       |
-| `UPLOAD_PATH`            | File upload directory                | ❌       |
-| `CORS_ORIGIN`            | Allowed CORS origins                 | ❌       |
-
-## 🗄 Database Setup
-
-### **Using Docker (Recommended)**
-
-1. **Start PostgreSQL with Docker**
-
-   ```bash
-   docker run --name getitdone-postgres \
-     -e POSTGRES_DB=getitdone_db \
-     -e POSTGRES_USER=admin \
-     -e POSTGRES_PASSWORD=password \
-     -p 5432:5432 \
-     -d postgres:15
-   ```
-
-2. **Update DATABASE_URL in .env**
-   ```bash
-   DATABASE_URL="postgresql://admin:password@localhost:5432/getitdone_db"
-   ```
-
-### **Manual PostgreSQL Setup**
-
-1. **Install PostgreSQL**
-
-   ```bash
-   # macOS
-   brew install postgresql
-
-   # Ubuntu
-   sudo apt install postgresql postgresql-contrib
-   ```
-
-2. **Create database and user**
-   ```sql
-   CREATE DATABASE getitdone_db;
-   CREATE USER admin WITH PASSWORD 'password';
-   GRANT ALL PRIVILEGES ON DATABASE getitdone_db TO admin;
-   ```
-
-### **Database Migration**
-
-```bash
-# Apply migrations
-npx prisma migrate deploy
-
-# Reset database (development only)
-npx prisma migrate reset
-
-# Generate Prisma client
-npx prisma generate
-
-# View database in Prisma Studio
-npx prisma studio
-```
-
-## 📚 API Documentation
-
-### **Base URL**
+### Base URL
 
 ```
 http://localhost:5000/api/v1
 ```
 
-### **Authentication Endpoints**
+### Authentication
 
-| Method | Endpoint                | Description            |
-| ------ | ----------------------- | ---------------------- |
-| `POST` | `/auth/register`        | User registration      |
-| `POST` | `/auth/login`           | User login             |
-| `POST` | `/auth/logout`          | User logout            |
-| `POST` | `/auth/forgot-password` | Request password reset |
-| `POST` | `/auth/reset-password`  | Reset password         |
-| `POST` | `/auth/change-password` | Change password        |
-| `GET`  | `/auth/me`              | Get current user       |
+| Method | Endpoint                        | Description                  |
+| ------ | ------------------------------- | ---------------------------- |
+| POST   | `/auth/login`                   | User login                   |
+| POST   | `/auth/logout`                  | User logout                  |
+| POST   | `/auth/refresh-token`           | Refresh access token         |
+| GET    | `/auth/current-user`            | Get authenticated user       |
+| POST   | `/auth/update-password`         | Change password              |
+| POST   | `/auth/forgot-password`         | Request password reset       |
+| POST   | `/auth/reset-password`          | Reset password with token    |
+| POST   | `/auth/send-verification-email` | Send email verification link |
+| POST   | `/auth/verify-email`            | Verify email with token      |
 
-### **User Management**
+### User Management
 
-| Method   | Endpoint     | Description           |
-| -------- | ------------ | --------------------- |
-| `GET`    | `/users`     | Get all users (Admin) |
-| `GET`    | `/users/:id` | Get user by ID        |
-| `PUT`    | `/users/:id` | Update user           |
-| `DELETE` | `/users/:id` | Delete user           |
+| Method | Endpoint                     | Description                  |
+| ------ | ---------------------------- | ---------------------------- |
+| POST   | `/user/register/credentials` | Register new user            |
+| GET    | `/user/my-profile`           | Get user's own profile       |
+| PATCH  | `/user/complete-profile`     | Complete profile information |
+| PATCH  | `/user/update-profile`       | Update profile               |
+| PATCH  | `/user/update-avatar`        | Update profile picture       |
+| DELETE | `/user/delete-account`       | Soft delete account          |
+| GET    | `/user/:id`                  | Get public user profile      |
+| GET    | `/user`                      | Get all users                |
 
-### **Task Management**
+### Tasks
 
-| Method   | Endpoint     | Description            |
-| -------- | ------------ | ---------------------- |
-| `GET`    | `/tasks`     | Get tasks with filters |
-| `POST`   | `/tasks`     | Create new task        |
-| `GET`    | `/tasks/:id` | Get task by ID         |
-| `PUT`    | `/tasks/:id` | Update task            |
-| `DELETE` | `/tasks/:id` | Delete task            |
+| Method | Endpoint                           | Description                                      |
+| ------ | ---------------------------------- | ------------------------------------------------ |
+| POST   | `/task/post-task`                  | Create new task                                  |
+| GET    | `/task/all-task`                   | Get all tasks (with filters, search, pagination) |
+| GET    | `/task/:id`                        | Get task details                                 |
+| PATCH  | `/task/update-task/:id`            | Update task                                      |
+| DELETE | `/task/delete-task/:id`            | Soft delete task                                 |
+| PATCH  | `/task/:taskId/mark-in-progress`   | Mark task as in-progress                         |
+| PATCH  | `/task/:taskId/mark-completed`     | Mark task as completed                           |
+| PATCH  | `/task/:taskId/approve-completion` | Approve task completion                          |
+| PATCH  | `/task/:taskId/request-revision`   | Request task revision                            |
 
-### **Application System**
+### Applications
 
-| Method | Endpoint                    | Description           |
-| ------ | --------------------------- | --------------------- |
-| `POST` | `/tasks/:id/applications`   | Apply for task        |
-| `GET`  | `/tasks/:id/applications`   | Get task applications |
-| `PUT`  | `/applications/:id`         | Update application    |
-| `POST` | `/applications/:id/approve` | Approve application   |
+| Method | Endpoint                       | Description                 |
+| ------ | ------------------------------ | --------------------------- |
+| POST   | `/application/:taskId`         | Apply for a task            |
+| GET    | `/application/my-applications` | Get user's applications     |
+| GET    | `/application/task/:taskId`    | Get applications for a task |
+| GET    | `/application/:applicationId`  | Get application details     |
+| PATCH  | `/application/approve/:appId`  | Approve application         |
+| PATCH  | `/application/reject/:appId`   | Reject application          |
+| PATCH  | `/application/withdraw/:appId` | Withdraw application        |
 
-### **Response Format**
+### Payments
+
+| Method | Endpoint                           | Description                |
+| ------ | ---------------------------------- | -------------------------- |
+| POST   | `/payment/cash/init/:taskId`       | Initiate cash payment      |
+| PATCH  | `/payment/cash/confirm/:paymentId` | Confirm cash payment       |
+| PATCH  | `/payment/cash/decline/:paymentId` | Decline cash payment       |
+| POST   | `/payment/online/init/:taskId`     | Initiate online payment    |
+| POST   | `/payment/online/ipn-validate`     | Validate IPN from gateway  |
+| GET    | `/payment/user/payment-made`       | Get payments user made     |
+| GET    | `/payment/user/payment-received`   | Get payments user received |
+| GET    | `/payment/:id`                     | Get payment details        |
+
+### Wallet
+
+| Method | Endpoint                         | Description                |
+| ------ | -------------------------------- | -------------------------- |
+| GET    | `/wallet/my-wallet`              | Get wallet balance         |
+| GET    | `/wallet/wallet-transactions`    | Get transaction history    |
+| GET    | `/wallet/wallet-transaction/:id` | Get transaction details    |
+| GET    | `/wallet/commission-due`         | Get commission dues        |
+| GET    | `/wallet/commission-due/:id`     | Get commission due details |
+| PATCH  | `/wallet/commission-due/pay/:id` | Pay commission due         |
+
+### Response Format
 
 **Success Response:**
 
 ```json
 {
   "success": true,
-  "message": "Operation completed successfully",
+  "message": "Operation successful",
   "statusCode": 200,
-  "timestamp": "2025-09-07T10:30:00.000Z",
+  "timestamp": "2025-01-23T10:30:00.000Z",
+  "path": "/api/v1/endpoint",
   "data": {
-    // Response data
+    /* response data */
   },
   "meta": {
-    // Pagination info (if applicable)
-    "total": 100,
+    "total": 45,
     "page": 1,
     "limit": 10,
-    "totalPages": 10
+    "totalPages": 5,
+    "hasNextPage": true,
+    "hasPreviousPage": false
   }
 }
 ```
@@ -390,396 +243,99 @@ http://localhost:5000/api/v1
   "success": false,
   "message": "Validation failed",
   "statusCode": 400,
-  "timestamp": "2025-09-07T10:30:00.000Z",
+  "timestamp": "2025-01-23T10:30:00.000Z",
   "error": {
     "type": "VALIDATION_ERROR",
-    "details": "Input validation failed",
-    "errorSources": [
-      {
-        "path": "email",
-        "message": "Email is required"
-      }
-    ]
+    "errorSources": [{ "path": "email", "message": "Email is required" }]
   }
 }
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
-├── 📁 config/          # Configuration files
-│   ├── database.ts     # Database connection
-│   └── index.ts        # App configuration
-├── 📁 interface/       # TypeScript interfaces
-│   └── global.interface.ts
-├── 📁 middlewares/     # Express middlewares
-│   ├── auth.middleware.ts
+├── config/              # Configuration
+│   ├── database.ts
+│   ├── index.ts
+│   └── nodemailer.config.ts
+├── interface/           # TypeScript interfaces
+├── middlewares/         # Express middlewares
+│   ├── authMiddleware.ts
+│   ├── authorizeMiddleware.ts
 │   ├── errorHandler.ts
 │   └── validateRequest.ts
-├── 📁 modules/         # Feature modules
-│   ├── 📁 auth/        # Authentication module
-│   │   ├── auth.controller.ts
-│   │   ├── auth.service.ts
-│   │   ├── auth.interface.ts
-│   │   └── auth.routes.ts
-│   ├── 📁 user/        # User management module
-│   │   ├── user.controller.ts
-│   │   ├── user.service.ts
-│   │   ├── user.validator.ts
-│   │   └── user.routes.ts
-│   └── 📁 task/        # Task management module
-│       ├── task.controller.ts
-│       ├── task.service.ts
-│       ├── task.validator.ts
-│       └── task.routes.ts
-├── 📁 types/          # Global type definitions
-│   └── global.d.ts
-├── 📁 utils/          # Utility functions
-│   ├── sendResponse.ts
-│   ├── asyncHandler.ts
-│   ├── createToken.ts
-│   └── index.ts
-├── 📄 app.ts          # Express app setup
-└── 📄 server.ts       # Server entry point
+├── modules/             # Feature modules
+│   ├── auth/            # Authentication
+│   ├── user/            # User management
+│   ├── task/            # Task management
+│   ├── application/     # Task applications
+│   ├── payment/         # Payment processing
+│   └── wallet/          # Wallet operations
+├── utils/               # Utilities
+│   ├── query.ts         # Pagination, search, filter, sort
+│   ├── sendResponse.ts  # Response formatting
+│   ├── asyncHandler.ts  # Async error handling
+│   ├── appError.ts      # Custom error class
+│   └── sendEmail.ts     # Email service
+├── app.ts               # Express setup
+└── server.ts            # Server entry point
 
 prisma/
-├── 📁 migrations/     # Database migrations
-├── 📄 schema.prisma   # Database schema
-└── 📄 seed.ts         # Database seeding
-
-docs/
-├── 📄 api.md          # API documentation
-├── 📄 deployment.md   # Deployment guide
-└── 📄 contributing.md # Contribution guidelines
+├── migrations/          # Database migrations
+└── schema.prisma        # Database schema
 ```
 
-### **Module Structure**
+## Development
 
-Each feature module follows a consistent structure:
-
-- **Controller** - HTTP request/response handling
-- **Service** - Business logic and data operations
-- **Validator** - Input validation schemas (Zod)
-- **Interface** - TypeScript type definitions
-- **Routes** - Express route definitions
-
-## 💻 Development
-
-### **Available Scripts**
+### Available Scripts
 
 ```bash
-# Development
-npm run dev          # Start development server with hot reload
-npm run build        # Build TypeScript to JavaScript
-npm run start        # Start production server
-
-# Database
-npm run db:migrate   # Run database migrations
-npm run db:reset     # Reset database (dev only)
-npm run db:studio    # Open Prisma Studio
-npm run db:generate  # Generate Prisma client
-
-# Code Quality
-npm run lint         # Run ESLint
-npm run lint:fix     # Fix ESLint issues
-npm run format       # Format code with Prettier
-npm run type-check   # TypeScript type checking
-
-# Testing
-npm test             # Run tests
-npm run test:watch   # Run tests in watch mode
-npm run test:coverage # Generate test coverage
+npm run dev              # Start dev server with hot reload
+npm run build            # Build TypeScript
+npm run start            # Start production server
+npm run db:migrate       # Run migrations
+npm run db:studio        # Open Prisma Studio
+npm run lint             # Run ESLint
+npm run format           # Format with Prettier
 ```
 
-### **Development Workflow**
+### Module Structure
 
-1. **Create Feature Branch**
+Each module follows this pattern:
 
-   ```bash
-   git checkout -b feature/new-feature
-   ```
+- **controller.ts** - HTTP request handling
+- **service.ts** - Business logic
+- **route.ts** - Route definitions
+- **validator.ts** - Zod validation schemas
+- **interface.ts** - TypeScript types
 
-2. **Make Changes**
+### Authentication
 
-   - Follow the established module structure
-   - Add proper TypeScript types
-   - Include input validation
-   - Write tests for new functionality
+All protected endpoints require `Authorization: Bearer {accessToken}` header.
 
-3. **Database Changes**
+Refresh token is sent as httpOnly cookie automatically by the server.
 
-   ```bash
-   # Create migration
-   npx prisma migrate dev --name add_new_feature
+### Query Parameters
 
-   # Update Prisma client
-   npx prisma generate
-   ```
-
-4. **Test Changes**
-
-   ```bash
-   npm run lint
-   npm run type-check
-   npm test
-   ```
-
-5. **Commit and Push**
-   ```bash
-   git add .
-   git commit -m "feat: add new feature"
-   git push origin feature/new-feature
-   ```
-
-### **Code Style Guidelines**
-
-- **TypeScript**: Use strict type checking
-- **Naming**: Use camelCase for variables, PascalCase for types
-- **Imports**: Use absolute imports from `src/`
-- **Error Handling**: Use the custom `AppError` class
-- **Validation**: Use Zod schemas for input validation
-- **Database**: Use Prisma best practices
-
-## 🧪 Testing
-
-### **Testing Strategy**
-
-- **Unit Tests** - Individual functions and methods
-- **Integration Tests** - API endpoints and database operations
-- **E2E Tests** - Complete user workflows
-
-### **Testing Tools**
-
-- **Jest** - Testing framework
-- **Supertest** - HTTP assertion library
-- **@prisma/client** - Database testing utilities
-
-### **Running Tests**
+For list endpoints, use standard pagination & filtering:
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run specific test file
-npm test auth.test.ts
+?page=1&limit=10&sortBy=fieldName&sortOrder=asc&searchTerm=keyword
 ```
 
-### **Test Structure**
+### Error Handling
 
-```
-tests/
-├── 📁 unit/           # Unit tests
-│   ├── auth.test.ts
-│   └── user.test.ts
-├── 📁 integration/    # Integration tests
-│   ├── auth.api.test.ts
-│   └── user.api.test.ts
-├── 📁 e2e/           # End-to-end tests
-│   └── user-flow.test.ts
-└── 📁 fixtures/      # Test data and utilities
-    ├── database.ts
-    └── testData.ts
-```
+The API uses custom error codes:
 
-## 🚀 Deployment
-
-### **Production Environment**
-
-**Environment Variables for Production:**
-
-```bash
-NODE_ENV=production
-DATABASE_URL=your_production_database_url
-JWT_ACCESS_SECRET=secure_random_string
-JWT_REFRESH_SECRET=another_secure_random_string
-```
-
-### **Docker Deployment**
-
-1. **Build Docker Image**
-
-   ```bash
-   docker build -t get-it-done-backend .
-   ```
-
-2. **Run with Docker Compose**
-
-   ```yaml
-   version: "3.8"
-   services:
-     app:
-       build: .
-       ports:
-         - "5000:5000"
-       environment:
-         - NODE_ENV=production
-         - DATABASE_URL=postgresql://user:pass@db:5432/getitdone
-       depends_on:
-         - db
-
-     db:
-       image: postgres:15
-       environment:
-         POSTGRES_DB: getitdone
-         POSTGRES_USER: user
-         POSTGRES_PASSWORD: pass
-       volumes:
-         - postgres_data:/var/lib/postgresql/data
-
-   volumes:
-     postgres_data:
-   ```
-
-### **Cloud Deployment Options**
-
-#### **Heroku**
-
-```bash
-# Install Heroku CLI and login
-heroku create get-it-done-backend
-heroku addons:create heroku-postgresql:hobby-dev
-heroku config:set NODE_ENV=production
-git push heroku main
-```
-
-#### **Railway**
-
-```bash
-# Install Railway CLI
-railway login
-railway init
-railway add postgresql
-railway deploy
-```
-
-#### **DigitalOcean App Platform**
-
-```yaml
-name: get-it-done-backend
-services:
-  - name: api
-    source_dir: /
-    github:
-      repo: RanokRaihan/get-it-done-backend
-      branch: main
-    run_command: npm start
-    environment_slug: node-js
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    envs:
-      - key: NODE_ENV
-        value: production
-databases:
-  - name: db
-    engine: PG
-    version: "15"
-```
-
-### **Production Checklist**
-
-- [ ] Environment variables configured
-- [ ] Database migrations applied
-- [ ] SSL certificates installed
-- [ ] Monitoring and logging setup
-- [ ] Backup strategy implemented
-- [ ] Security headers configured
-- [ ] Rate limiting enabled
-- [ ] Error tracking configured
-
-## 🤝 Contributing
-
-We welcome contributions to the Get It Done backend! Please follow these guidelines:
-
-### **Getting Started**
-
-1. **Fork the repository**
-2. **Clone your fork**
-   ```bash
-   git clone https://github.com/your-username/get-it-done-backend.git
-   ```
-3. **Create a feature branch**
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-
-### **Development Process**
-
-1. **Follow coding standards**
-
-   - Use TypeScript with strict type checking
-   - Follow the established project structure
-   - Add proper error handling
-   - Include input validation
-
-2. **Write tests**
-
-   - Unit tests for business logic
-   - Integration tests for API endpoints
-   - Maintain test coverage above 80%
-
-3. **Update documentation**
-   - Update README if needed
-   - Add JSDoc comments for functions
-   - Update API documentation
-
-### **Pull Request Process**
-
-1. **Ensure CI passes**
-
-   - All tests pass
-   - Code passes linting
-   - TypeScript compiles without errors
-
-2. **Provide clear description**
-
-   - Explain what changes were made
-   - Include screenshots if UI changes
-   - Reference related issues
-
-3. **Request review**
-   - Tag relevant maintainers
-   - Respond to feedback promptly
-
-### **Code Review Guidelines**
-
-- **Functionality** - Does the code work as intended?
-- **Code Quality** - Is the code clean and maintainable?
-- **Performance** - Are there any performance concerns?
-- **Security** - Are there any security vulnerabilities?
-- **Testing** - Are there adequate tests?
-
-## 📄 License
-
-This project is licensed under the **ISC License** - see the [LICENSE](LICENSE) file for details.
-
-## 👥 Team
-
-- **Lead Developer**: [Ranok Raihan](https://github.com/RanokRaihan)
-- **Project Repository**: [get-it-done-backend](https://github.com/RanokRaihan/get-it-done-backend)
-
-## 🙏 Acknowledgments
-
-- **Express.js** community for the excellent web framework
-- **Prisma** team for the amazing ORM and database tools
-- **TypeScript** team for bringing type safety to JavaScript
-- **Zod** for runtime type validation
-- All contributors and testers who helped improve this project
-
-## 📞 Support
-
-If you have any questions or need help with the project:
-
-- **Create an Issue**: [GitHub Issues](https://github.com/RanokRaihan/get-it-done-backend/issues)
-- **Discussion**: [GitHub Discussions](https://github.com/RanokRaihan/get-it-done-backend/discussions)
-- **Email**: [your-email@example.com](mailto:your-email@example.com)
+- `VALIDATION_ERROR` - Input validation failed
+- `AUTHENTICATION_ERROR` - Login/auth failed
+- `AUTHORIZATION_ERROR` - Insufficient permissions
+- `NOT_FOUND` - Resource not found
+- `CONFLICT` - Resource already exists
+- `RATE_LIMIT_EXCEEDED` - Too many requests
+- `ACCOUNT_LOCKED` - Account locked after failed attempts
 
 ---
 
-**Made with ❤️ by the Get It Done team**
+**Built with ❤️ for Get It Done**
