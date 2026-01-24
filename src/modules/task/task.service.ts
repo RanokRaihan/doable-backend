@@ -1,8 +1,12 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
+import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
 import {
+  taskFilterableFields,
+  TaskSearchFields,
   taskSensitiveFieldsOwner,
   taskSensitiveFieldsPublic,
+  taskSortableFields,
 } from "./task.constant";
 import { CreateTaskPayload, UpdateTaskPayload } from "./task.interface";
 
@@ -29,18 +33,34 @@ const createTaskService = async (taskData: CreateTaskPayload) => {
 };
 //TODO:update get all task according to usecase
 
-const getTasksService = async () => {
+const getTasksService = async (parsedQuery: ParsedQuery) => {
   try {
-    const tasks = await prisma.task.findMany({
-      where: { isDeleted: false },
-      include: {
-        images: true,
-      },
-      omit: {
-        ...taskSensitiveFieldsPublic,
-      },
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      searchFields: TaskSearchFields,
+      filterFields: taskFilterableFields,
+      sortFields: taskSortableFields,
     });
-    return tasks;
+    const mergedWhere = {
+      ...where,
+      isDeleted: false,
+    };
+    const queryOptions: any = {
+      where: mergedWhere,
+      skip,
+      take,
+      include: { images: true },
+      omit: { ...taskSensitiveFieldsPublic },
+    };
+
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
+    }
+    const [tasks, totalCount] = await Promise.all([
+      prisma.task.findMany(queryOptions),
+      prisma.task.count({ where: mergedWhere }),
+    ]);
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: tasks, meta };
   } catch (error) {
     console.error("Error fetching tasks:", error);
     throw error;
@@ -74,7 +94,7 @@ const getTaskByIdService = async (taskId: string) => {
 const updateTaskService = async (
   taskId: string,
   userId: string,
-  taskData: UpdateTaskPayload
+  taskData: UpdateTaskPayload,
 ) => {
   try {
     console.log(userId);
@@ -86,7 +106,7 @@ const updateTaskService = async (
     }
 
     const filteredTaskData = Object.fromEntries(
-      Object.entries(taskData).filter(([_, value]) => value !== undefined)
+      Object.entries(taskData).filter(([_, value]) => value !== undefined),
     );
     console.log({ taskData, filteredTaskData });
 
@@ -198,7 +218,7 @@ const markTaskAsCompletedService = async (taskId: string, userId: string) => {
     if (task.status !== "IN_PROGRESS") {
       throw new AppError(
         400,
-        "Task is not in progress state!make it in progress first"
+        "Task is not in progress state!make it in progress first",
       );
     }
     if (
@@ -230,7 +250,7 @@ const approveTaskCompletionService = async (taskId: string, userId: string) => {
     if (task.status === "PAYMENT_PROCESSING") {
       throw new AppError(
         400,
-        "Task is already approved for payment processing!"
+        "Task is already approved for payment processing!",
       );
     }
     if (task.postedById !== userId) {
@@ -239,7 +259,7 @@ const approveTaskCompletionService = async (taskId: string, userId: string) => {
     if (task.status !== "PENDING_REVIEW") {
       throw new AppError(
         400,
-        "Task is not pending review!cannot approve completion"
+        "Task is not pending review!cannot approve completion",
       );
     }
 
@@ -265,13 +285,13 @@ const requestTaskRevisionService = async (taskId: string, userId: string) => {
     if (task.postedById !== userId) {
       throw new AppError(
         403,
-        "Unauthorized to request revision for this task completion"
+        "Unauthorized to request revision for this task completion",
       );
     }
     if (task.status !== "PENDING_REVIEW") {
       throw new AppError(
         400,
-        "Revision can only be requested for tasks pending review!"
+        "Revision can only be requested for tasks pending review!",
       );
     }
 

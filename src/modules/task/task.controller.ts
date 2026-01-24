@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import { AppError, asyncHandler, sendResponse } from "../../utils";
+import { parseQuery } from "../../utils/query";
 import { CreateTaskRequest, UpdateTaskPayload } from "./task.interface";
 import {
   approveTaskCompletionService,
@@ -24,9 +25,10 @@ const createTaskController: RequestHandler = asyncHandler(async (req, res) => {
   sendResponse(res, 201, "Task created successfully!", result);
 });
 
-const getTasksController: RequestHandler = asyncHandler(async (_req, res) => {
-  const result = await getTasksService();
-  sendResponse(res, 200, "Tasks retrieved successfully!", result);
+const getTasksController: RequestHandler = asyncHandler(async (req, res) => {
+  const parsedQuery = parseQuery(req, { maxLimit: 50, defaultLimit: 10 });
+  const { data, meta } = await getTasksService(parsedQuery);
+  sendResponse(res, 200, "Tasks retrieved successfully!", data, meta);
 });
 
 const getTaskByIdController: RequestHandler = asyncHandler(async (req, res) => {
@@ -79,7 +81,7 @@ const markTaskAsInProgressController: RequestHandler = asyncHandler(
     }
     await markTaskAsInProgressService(taskId, user.id);
     sendResponse(res, 200, "Task marked as in progress successfully!", null);
-  }
+  },
 );
 
 // task completion controllers
@@ -95,7 +97,7 @@ const markTaskCompletedController: RequestHandler = asyncHandler(
     }
     await markTaskAsCompletedService(taskId, user.id);
     sendResponse(res, 200, "Task marked as completed successfully!", null);
-  }
+  },
 );
 
 const approveTaskCompletionController: RequestHandler = asyncHandler(
@@ -110,7 +112,7 @@ const approveTaskCompletionController: RequestHandler = asyncHandler(
     }
     await approveTaskCompletionService(taskId, user.id);
     sendResponse(res, 200, "Task approved successfully!", null);
-  }
+  },
 );
 
 const requestTaskRevisionController: RequestHandler = asyncHandler(
@@ -125,7 +127,7 @@ const requestTaskRevisionController: RequestHandler = asyncHandler(
     }
     await requestTaskRevisionService(taskId, user.id);
     sendResponse(res, 200, "Task revision requested successfully!", null);
-  }
+  },
 );
 
 // Exporting controllers for use in routes

@@ -1,9 +1,10 @@
-import { TaskCategory, TaskPriority } from "@prisma/client";
+import { TaskCategory, TaskPriority, TaskStatus } from "@prisma/client";
 import { z } from "zod";
+import { taskSortableFields } from "./task.constant";
 
-const createTaskSchema = z
-  .object({
-    body: z.object({
+const createTaskSchema = z.object({
+  body: z
+    .object({
       title: z
         .string()
         .min(1, "Title is required")
@@ -26,13 +27,12 @@ const createTaskSchema = z
         .int()
         .positive("Estimated duration is required"),
       expiresAt: z.iso.datetime().optional(),
-    }),
-  })
-  .strict();
-
-const updateTaskSchema = z
-  .object({
-    body: z.object({
+    })
+    .strict(),
+});
+const updateTaskSchema = z.object({
+  body: z
+    .object({
       title: z
         .string()
         .min(1, "Title is required")
@@ -59,10 +59,56 @@ const updateTaskSchema = z
         .positive("Estimated duration is required")
         .optional(),
       expiresAt: z.iso.datetime().optional(),
-    }),
-  })
-  .strict();
-
+    })
+    .strict(),
+});
+//get all tasks query validation
+const getAllTasksSchema = z.object({
+  query: z
+    .object({
+      page: z
+        .string()
+        .optional()
+        .refine((val) => !val || /^\d+$/.test(val), {
+          message: "Page must be a positive integer",
+        }),
+      limit: z
+        .string()
+        .optional()
+        .refine((val) => !val || /^\d+$/.test(val), {
+          message: "Limit must be a positive integer",
+        }),
+      sortBy: z
+        .enum(taskSortableFields, {
+          error: `Invalid sortBy field! Allowed fields are: ${taskSortableFields.join(", ")}`,
+        })
+        .optional(),
+      sortOrder: z
+        .enum(["asc", "desc"], {
+          error: "sortOrder must be either 'asc' or 'desc'",
+        })
+        .optional(),
+      searchTerm: z.string().optional(),
+      status: z
+        .enum(TaskStatus, {
+          error: `Invalid status! Allowed statuses are: ${Object.values(TaskStatus).join(", ")}`,
+        })
+        .optional(),
+      category: z
+        .enum(TaskCategory, {
+          error: `Invalid category! Allowed categories are: ${Object.values(
+            TaskCategory,
+          ).join(", ")}`,
+        })
+        .optional(),
+      priority: z
+        .enum(TaskPriority, {
+          error: `Invalid priority! Allowed priorities are: ${Object.values(TaskPriority).join(", ")}`,
+        })
+        .optional(),
+    })
+    .strict(),
+});
 // exports
 
-export { createTaskSchema, updateTaskSchema };
+export { createTaskSchema, getAllTasksSchema, updateTaskSchema };
