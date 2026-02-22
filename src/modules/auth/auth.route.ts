@@ -31,12 +31,12 @@ router.post("/reset-password", resetPasswordController);
 router.post(
   "/send-verification-email",
   validateRequest(sendVerificationEmailSchema),
-  sendVerificationController
+  sendVerificationController,
 );
 router.post(
   "/verify-email",
   validateRequest(verifyEmailValidationSchema),
-  verifyEmailController
+  verifyEmailController,
 );
 
 export default router;

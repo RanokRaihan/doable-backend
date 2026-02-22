@@ -25,6 +25,7 @@ const loginUserService = async (loginData: UserLoginInput) => {
         name: true,
         role: true,
         password: true,
+        image: true,
         provider: true,
         profileStatus: true,
         emailVerified: true,
@@ -35,7 +36,7 @@ const loginUserService = async (loginData: UserLoginInput) => {
     });
 
     if (!userWithPassword || userWithPassword.isDeleted) {
-      throw new AppError(401, "Invalid credentials", "AUTHENTICATION_ERROR");
+      throw new AppError(400, "Invalid credentials", "AUTHENTICATION_ERROR");
     }
 
     if (
@@ -43,9 +44,9 @@ const loginUserService = async (loginData: UserLoginInput) => {
       userWithPassword.provider !== "CREDENTIALS"
     ) {
       throw new AppError(
-        401,
+        400,
         "Login Method not supported! Please use a different method.",
-        "AUTHENTICATION_ERROR"
+        "AUTHENTICATION_ERROR",
       );
     }
 
@@ -54,23 +55,23 @@ const loginUserService = async (loginData: UserLoginInput) => {
       throw new AppError(
         423,
         "Account is locked. Please contact support.",
-        "ACCOUNT_LOCKED"
+        "ACCOUNT_LOCKED",
       );
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(
       password,
-      userWithPassword.password
+      userWithPassword.password,
     );
     if (!isPasswordValid) {
       // Increment failed login count
       await incrementFailedLoginCount(
         userWithPassword.id,
-        userWithPassword.failedLoginCount
+        userWithPassword.failedLoginCount,
       );
 
-      throw new AppError(401, "Invalid credentials", "AUTHENTICATION_ERROR");
+      throw new AppError(400, "Invalid credentials", "AUTHENTICATION_ERROR");
     }
 
     // Reset failed login count and update last login
@@ -81,7 +82,7 @@ const loginUserService = async (loginData: UserLoginInput) => {
       userId: userWithPassword.id,
       email: userWithPassword.email,
       name: userWithPassword.name,
-      userRole: userWithPassword.role,
+      role: userWithPassword.role,
       profileStatus: userWithPassword.profileStatus,
     };
 
@@ -89,13 +90,13 @@ const loginUserService = async (loginData: UserLoginInput) => {
     const accessToken = createToken(
       jwtPayload,
       accessSecret,
-      accessExpiresIn as SignOptions["expiresIn"]
+      accessExpiresIn as SignOptions["expiresIn"],
     );
 
     const refreshToken = createToken(
       jwtPayload,
       refreshSecret,
-      refreshExpiresIn as SignOptions["expiresIn"]
+      refreshExpiresIn as SignOptions["expiresIn"],
     );
 
     // Return clean user data without password
@@ -104,6 +105,8 @@ const loginUserService = async (loginData: UserLoginInput) => {
       email: userWithPassword.email,
       name: userWithPassword.name,
       role: userWithPassword.role,
+      profileStatus: userWithPassword.profileStatus,
+      image: userWithPassword.image,
     };
 
     return {
@@ -122,17 +125,22 @@ const getCurrentUserService = async (userId: string) => {
   try {
     const user = await prisma.user.findFirst({
       where: { id: userId, isDeleted: false },
-      omit: {
-        password: true,
-        passwordResetToken: true,
-        passwordResetAt: true,
-        failedLoginCount: true,
-        lockedAt: true,
-        deletedAt: true,
-        deletedBy: true,
-        createdAt: true,
-        updatedAt: true,
-        isDeleted: true,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        profileStatus: true,
+        provider: true,
+        image: true,
+        dateOfBirth: true,
+        gender: true,
+        emailVerified: true,
+        emailVerifiedAt: true,
+        address: true,
+        phone: true,
+        bio: true,
+        lastLoginAt: true,
       },
     });
 
@@ -146,12 +154,37 @@ const getCurrentUserService = async (userId: string) => {
     throw error;
   }
 };
+// Get current user by ID
+const getAuthUser = async (userId: string) => {
+  try {
+    const user = await prisma.user.findFirst({
+      where: { id: userId, isDeleted: false },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        profileStatus: true,
+        isDeleted: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError(404, "User not found", "NOT_FOUND");
+    }
+
+    return user;
+  } catch (error) {
+    console.error("Error in getAuthUserService:", error);
+    throw error;
+  }
+};
 
 // Change user password
 const changeUserPasswordService = async (
   userEmail: string,
   oldPassword: string,
-  newPassword: string
+  newPassword: string,
 ) => {
   try {
     // Get user with password
@@ -173,7 +206,7 @@ const changeUserPasswordService = async (
       throw new AppError(
         400,
         "Password change not allowed for this account type",
-        "OPERATION_NOT_ALLOWED"
+        "OPERATION_NOT_ALLOWED",
       );
     }
 
@@ -183,7 +216,7 @@ const changeUserPasswordService = async (
       throw new AppError(
         401,
         "Current password is incorrect",
-        "AUTHENTICATION_ERROR"
+        "AUTHENTICATION_ERROR",
       );
     }
 
@@ -209,7 +242,7 @@ const changeUserPasswordService = async (
 // Increment failed login count and lock account if necessary
 const incrementFailedLoginCount = async (
   userId: string,
-  failedLoginCount: number
+  failedLoginCount: number,
 ) => {
   try {
     await prisma.user.update({
@@ -217,7 +250,8 @@ const incrementFailedLoginCount = async (
       data: {
         failedLoginCount: failedLoginCount + 1,
         // Lock account after 5 failed attempts
-        ...(failedLoginCount >= 4 && {
+        //for testting set to 40, change to 5 later
+        ...(failedLoginCount >= 40 && {
           lockedAt: new Date(),
         }),
       },
@@ -265,7 +299,7 @@ const forgotPasswordService = async (email: string) => {
       throw new AppError(
         400,
         "Password reset not available for this account type",
-        "OPERATION_NOT_ALLOWED"
+        "OPERATION_NOT_ALLOWED",
       );
     }
 
@@ -313,7 +347,7 @@ const forgotPasswordService = async (email: string) => {
 const resetPasswordService = async (
   email: string,
   newPassword: string,
-  resetToken: string
+  resetToken: string,
 ) => {
   try {
     const user = await prisma.user.findFirst({
@@ -331,7 +365,7 @@ const resetPasswordService = async (
       throw new AppError(
         400,
         "Invalid or expired reset token",
-        "INVALID_TOKEN"
+        "INVALID_TOKEN",
       );
     }
 
@@ -345,7 +379,7 @@ const resetPasswordService = async (
       throw new AppError(
         400,
         "Invalid or expired reset token",
-        "INVALID_TOKEN"
+        "INVALID_TOKEN",
       );
     }
 
@@ -406,7 +440,7 @@ const refreshAuthTokenService = async (token: string) => {
       userId: user.id,
       email: user.email,
       name: user.name,
-      userRole: user.role,
+      role: user.role,
       profileStatus: user.profileStatus,
     };
 
@@ -414,12 +448,12 @@ const refreshAuthTokenService = async (token: string) => {
     const newAccessToken = createToken(
       jwtPayload,
       accessSecret,
-      accessExpiresIn as SignOptions["expiresIn"]
+      accessExpiresIn as SignOptions["expiresIn"],
     );
     const newRefreshToken = createToken(
       jwtPayload,
       refreshSecret,
-      refreshExpiresIn as SignOptions["expiresIn"]
+      refreshExpiresIn as SignOptions["expiresIn"],
     );
     return {
       newAccessToken,
@@ -450,7 +484,7 @@ const sendVerificationEmailService = async (email: string) => {
       throw new AppError(
         400,
         "Email verification not available for this account type",
-        "OPERATION_NOT_ALLOWED"
+        "OPERATION_NOT_ALLOWED",
       );
     }
     if (
@@ -459,13 +493,13 @@ const sendVerificationEmailService = async (email: string) => {
       user.emailVerificationSentAt > new Date(Date.now() - 5 * 60 * 1000)
     ) {
       const { minutes, seconds } = getTimeRemaining(
-        new Date(user.emailVerificationSentAt.getTime() + 5 * 60 * 1000)
+        new Date(user.emailVerificationSentAt.getTime() + 5 * 60 * 1000),
       );
 
       throw new AppError(
         400,
         `A verification email has already been sent. Please check your inbox. You can request a new one after ${minutes} minutes and ${seconds} seconds`,
-        "ALREADY_SENT"
+        "ALREADY_SENT",
       );
     }
     // Generate verification token
@@ -528,7 +562,7 @@ const verifyEmailService = async (rawToken: string) => {
       throw new AppError(
         400,
         "Invalid or expired verification link",
-        "TOKEN_INVALID"
+        "TOKEN_INVALID",
       );
     }
 
@@ -566,6 +600,7 @@ const verifyEmailService = async (rawToken: string) => {
 export {
   changeUserPasswordService,
   forgotPasswordService,
+  getAuthUser,
   getCurrentUserService,
   incrementFailedLoginCount,
   loginUserService,

@@ -74,7 +74,13 @@ const getTaskByIdService = async (taskId: string) => {
       where: { id: taskId, isDeleted: false },
       include: {
         images: true,
-        approvedApplication: true,
+        postedBy: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
       },
       omit: {
         ...taskSensitiveFieldsPublic,

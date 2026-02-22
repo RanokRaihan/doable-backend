@@ -2,7 +2,6 @@ const taskSensitiveFieldsPublic = {
   isDeleted: true,
   deletedAt: true,
   deletedBy: true,
-  postedById: true,
   approvedApplicationId: true,
   agreedCompensation: true,
 };

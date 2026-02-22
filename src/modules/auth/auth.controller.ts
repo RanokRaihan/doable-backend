@@ -39,8 +39,9 @@ const loginController: RequestHandler = asyncHandler(async (req, res) => {
     {
       user,
       accessToken,
+      refreshToken,
     },
-    { path: req.path }
+    { path: req.path },
   );
 });
 
@@ -67,7 +68,7 @@ const getCurrentUserController: RequestHandler = asyncHandler(
       return ResponseHandler.unauthorized(
         res,
         "User not authenticated",
-        req.path
+        req.path,
       );
     }
 
@@ -76,7 +77,7 @@ const getCurrentUserController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(res, "User retrieved successfully", user, {
       path: req.path,
     });
-  }
+  },
 );
 
 const changePasswordController: RequestHandler = asyncHandler(
@@ -88,7 +89,7 @@ const changePasswordController: RequestHandler = asyncHandler(
       return ResponseHandler.unauthorized(
         res,
         "User not authenticated",
-        req.path
+        req.path,
       );
     }
 
@@ -97,7 +98,7 @@ const changePasswordController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(res, "Password changed successfully", null, {
       path: req.path,
     });
-  }
+  },
 );
 
 const forgotPasswordController: RequestHandler = asyncHandler(
@@ -109,7 +110,7 @@ const forgotPasswordController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(res, "Password reset email sent", null, {
       path: req.path,
     });
-  }
+  },
 );
 
 const resetPasswordController: RequestHandler = asyncHandler(
@@ -121,26 +122,25 @@ const resetPasswordController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(res, "Password reset successfully", null, {
       path: req.path,
     });
-  }
+  },
 );
 
 const refreshTokenController: RequestHandler = asyncHandler(
   async (req, res) => {
     // Extract refresh token from cookies
-    // TODO: change later to request body if needed
-    const refreshToken = req.cookies.refreshToken;
+
+    const refreshToken = req.body.refreshToken || req.cookies.refreshToken;
 
     if (!refreshToken) {
       return ResponseHandler.unauthorized(
         res,
         "Refresh token is missing",
-        req.path
+        req.path,
       );
     }
 
-    const { newAccessToken, newRefreshToken } = await refreshAuthTokenService(
-      refreshToken
-    );
+    const { newAccessToken, newRefreshToken } =
+      await refreshAuthTokenService(refreshToken);
 
     // Set new refresh token as httpOnly cookie
     res.cookie("refreshToken", newRefreshToken, {
@@ -154,9 +154,9 @@ const refreshTokenController: RequestHandler = asyncHandler(
       res,
       "Token refreshed successfully",
       { accessToken: newAccessToken },
-      { path: req.path }
+      { path: req.path },
     );
-  }
+  },
 );
 
 // email verification controllers
@@ -171,7 +171,7 @@ const sendVerificationController: RequestHandler = asyncHandler(
     // Call service to send verification email
     await sendVerificationEmailService(email);
     sendResponse(res, 200, "Verification email sent successfully", null);
-  }
+  },
 );
 
 const verifyEmailController: RequestHandler = asyncHandler(async (req, res) => {

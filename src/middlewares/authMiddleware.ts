@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import config from "../config";
 import { IJwtPayload } from "../modules/auth/auth.interface";
-import { getCurrentUserService } from "../modules/auth/auth.service";
+import { getAuthUser } from "../modules/auth/auth.service";
 import { AppError, asyncHandler } from "../utils";
 
 // Constants for better maintainability
@@ -21,7 +21,7 @@ export const auth = asyncHandler(
   async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     // Extract token with optional chaining
     const authHeader = req.headers.authorization;
-    console.log("Auth Header:", authHeader);
+
     const token = authHeader?.startsWith("Bearer ")
       ? authHeader.split(" ")[1]
       : null;
@@ -39,7 +39,7 @@ export const auth = asyncHandler(
     }
 
     // Get user and validate existence
-    const user = await getCurrentUserService(decoded.userId);
+    const user = await getAuthUser(decoded.userId);
     if (!user || user.isDeleted) {
       throw new AppError(HTTP_STATUS.NOT_FOUND, ERROR_MESSAGES.USER_NOT_FOUND);
     }
@@ -48,12 +48,12 @@ export const auth = asyncHandler(
     if (user.profileStatus === "SUSPENDED") {
       throw new AppError(
         HTTP_STATUS.UNAUTHORIZED,
-        ERROR_MESSAGES.ACCOUNT_SUSPENDED
+        ERROR_MESSAGES.ACCOUNT_SUSPENDED,
       );
     }
 
     // Attach user to request and proceed
     req.user = user;
     next();
-  }
+  },
 );
