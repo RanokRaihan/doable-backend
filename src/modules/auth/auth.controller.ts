@@ -153,7 +153,7 @@ const refreshTokenController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(
       res,
       "Token refreshed successfully",
-      { accessToken: newAccessToken },
+      { accessToken: newAccessToken, refreshToken: newRefreshToken },
       { path: req.path },
     );
   },

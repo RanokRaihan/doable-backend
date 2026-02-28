@@ -33,7 +33,7 @@ const getAllUsersController: RequestHandler = asyncHandler(
   async (_req, res) => {
     const users = await getAllUsersService();
     sendResponse(res, 200, "Users retrieved successfully!", users);
-  }
+  },
 );
 
 const getUserByEmailController: RequestHandler = asyncHandler(
@@ -47,7 +47,7 @@ const getUserByEmailController: RequestHandler = asyncHandler(
       throw new AppError(404, "User not found!");
     }
     sendResponse(res, 200, "User retrieved successfully!", user);
-  }
+  },
 );
 
 const getUserByIdController: RequestHandler = asyncHandler(async (req, res) => {
@@ -72,7 +72,7 @@ const completeUserProfileController: RequestHandler = asyncHandler(
 
     const updatedUser = await completeUserProfileService(user.id, profileData);
     sendResponse(res, 200, "User profile completed successfully!", updatedUser);
-  }
+  },
 );
 
 const updateUserController: RequestHandler = asyncHandler(async (req, res) => {
@@ -93,7 +93,7 @@ const updateUserAvatarController: RequestHandler = asyncHandler(
     const { image }: { image: string } = req.body;
     const updatedUser = await updateUserAvatarService(user.id, image);
     sendResponse(res, 200, "User avatar updated successfully!", updatedUser);
-  }
+  },
 );
 
 const deleteAccountController: RequestHandler = asyncHandler(
@@ -105,7 +105,7 @@ const deleteAccountController: RequestHandler = asyncHandler(
 
     await deleteAccountService(user.id);
     sendResponse(res, 200, "User account deleted successfully!", null);
-  }
+  },
 );
 const getUserProfileController: RequestHandler = asyncHandler(
   async (req, res) => {
@@ -113,14 +113,14 @@ const getUserProfileController: RequestHandler = asyncHandler(
     if (!user || !user.id) {
       throw new AppError(401, "Unauthorized");
     }
-
+    // change and create a separate service for this to get full profile
     const userProfile = await getCurrentUserService(user.id);
     if (!userProfile) {
       throw new AppError(404, "User not found");
     }
 
     sendResponse(res, 200, "User profile retrieved successfully!", userProfile);
-  }
+  },
 );
 export {
   completeUserProfileController,

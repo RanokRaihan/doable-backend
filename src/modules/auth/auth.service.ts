@@ -133,14 +133,7 @@ const getCurrentUserService = async (userId: string) => {
         profileStatus: true,
         provider: true,
         image: true,
-        dateOfBirth: true,
-        gender: true,
         emailVerified: true,
-        emailVerifiedAt: true,
-        address: true,
-        phone: true,
-        bio: true,
-        lastLoginAt: true,
       },
     });
 
