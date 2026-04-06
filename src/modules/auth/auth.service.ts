@@ -83,6 +83,7 @@ const loginUserService = async (loginData: UserLoginInput) => {
       email: userWithPassword.email,
       name: userWithPassword.name,
       role: userWithPassword.role,
+      emailVerified: userWithPassword.emailVerified,
       profileStatus: userWithPassword.profileStatus,
     };
 
@@ -335,6 +336,32 @@ const forgotPasswordService = async (email: string) => {
     throw error;
   }
 };
+// getEmail verification data for logged in user
+const getEmailVerificationDataService = async (userEmail: string) => {
+  try {
+    const user = await prisma.user.findFirst({
+      where: { email: userEmail.toLowerCase().trim(), isDeleted: false },
+      select: {
+        emailVerified: true,
+        emailVerifiedAt: true,
+        emailVerificationSentAt: true,
+        emailVerificationExpiresAt: true,
+      },
+    });
+    if (!user) {
+      throw new AppError(404, "User not found", "NOT_FOUND");
+    }
+    return {
+      emailVerified: user.emailVerified,
+      emailVerificationSentAt: user.emailVerificationSentAt,
+      emailVerificationExpiresAt: user.emailVerificationExpiresAt,
+      emailVerifiedAt: user.emailVerifiedAt,
+    };
+  } catch (error) {
+    console.error("Error in getEmailVerificationDataService:", error);
+    throw error;
+  }
+};
 
 // Reset password using reset token
 const resetPasswordService = async (
@@ -421,6 +448,7 @@ const refreshAuthTokenService = async (token: string) => {
         name: true,
         role: true,
         profileStatus: true,
+        emailVerified: true,
       },
     });
 
@@ -430,6 +458,7 @@ const refreshAuthTokenService = async (token: string) => {
 
     // Create new JWT payload
     const jwtPayload: IJwtPayload = {
+      emailVerified: user.emailVerified,
       userId: user.id,
       email: user.email,
       name: user.name,
@@ -483,10 +512,10 @@ const sendVerificationEmailService = async (email: string) => {
     if (
       user.emailVerificationToken &&
       user.emailVerificationSentAt &&
-      user.emailVerificationSentAt > new Date(Date.now() - 5 * 60 * 1000)
+      user.emailVerificationSentAt > new Date(Date.now() - 1 * 60 * 1000)
     ) {
       const { minutes, seconds } = getTimeRemaining(
-        new Date(user.emailVerificationSentAt.getTime() + 5 * 60 * 1000),
+        new Date(user.emailVerificationSentAt.getTime() + 1 * 60 * 1000),
       );
 
       throw new AppError(
@@ -578,11 +607,38 @@ const verifyEmailService = async (rawToken: string) => {
         id: true,
         email: true,
         name: true,
+        role: true,
+        profileStatus: true,
         emailVerified: true,
       },
     });
 
-    return updatedUser;
+    // Generate new tokens with emailVerified: true
+    const jwtPayload: IJwtPayload = {
+      userId: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      role: updatedUser.role,
+      emailVerified: updatedUser.emailVerified,
+      profileStatus: updatedUser.profileStatus,
+    };
+
+    const accessToken = createToken(
+      jwtPayload,
+      accessSecret,
+      accessExpiresIn as SignOptions["expiresIn"],
+    );
+    const refreshToken = createToken(
+      jwtPayload,
+      refreshSecret,
+      refreshExpiresIn as SignOptions["expiresIn"],
+    );
+
+    return {
+      user: updatedUser,
+      accessToken,
+      refreshToken,
+    };
   } catch (error) {
     console.error("Error in verifyEmailService:", error);
     throw error;
@@ -595,6 +651,7 @@ export {
   forgotPasswordService,
   getAuthUser,
   getCurrentUserService,
+  getEmailVerificationDataService,
   incrementFailedLoginCount,
   loginUserService,
   refreshAuthTokenService,

@@ -8,6 +8,7 @@ export interface IJwtPayload extends JwtPayload {
   name: string;
   role: UserRole;
   profileStatus: string;
+  emailVerified: boolean;
   // Optional standard JWT claims
   iat?: number;
   exp?: number;
