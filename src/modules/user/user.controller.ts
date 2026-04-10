@@ -1,5 +1,9 @@
 import { RequestHandler } from "express";
+import { SignOptions } from "jsonwebtoken";
+import config from "../../config";
 import { AppError, asyncHandler, sendResponse } from "../../utils";
+import { createToken } from "../../utils/createToken";
+import { IJwtPayload } from "../auth/auth.interface";
 import { getCurrentUserService } from "../auth/auth.service";
 import {
   completeUserProfileService,
@@ -71,7 +75,43 @@ const completeUserProfileController: RequestHandler = asyncHandler(
     const profileData: CompleteUserProfileInput = req.body;
 
     const updatedUser = await completeUserProfileService(user.id, profileData);
-    sendResponse(res, 200, "User profile completed successfully!", updatedUser);
+
+    const jwtPayload: IJwtPayload = {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      profileStatus: updatedUser.profileStatus,
+      emailVerified: updatedUser.emailVerified,
+    };
+
+    const {
+      jwt: { accessSecret, refreshSecret, accessExpiresIn, refreshExpiresIn },
+    } = config;
+
+    const accessToken = createToken(
+      jwtPayload,
+      accessSecret,
+      accessExpiresIn as SignOptions["expiresIn"],
+    );
+    const refreshToken = createToken(
+      jwtPayload,
+      refreshSecret,
+      refreshExpiresIn as SignOptions["expiresIn"],
+    );
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: config.nodeEnv === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    sendResponse(res, 200, "User profile completed successfully!", {
+      user: updatedUser,
+      accessToken,
+      refreshToken,
+    });
   },
 );
 

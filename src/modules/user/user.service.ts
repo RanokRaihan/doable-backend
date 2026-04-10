@@ -18,7 +18,7 @@ const createUserService = async (payload: CreateUserInput) => {
         400,
         "Password is required!",
         "VALIDATION_ERROR",
-        "password"
+        "password",
       );
     }
     const existingUser = await prisma.user.findUnique({
@@ -29,7 +29,7 @@ const createUserService = async (payload: CreateUserInput) => {
         400,
         "User with this email already exists!",
         "VALIDATION_ERROR",
-        "email"
+        "email",
       );
     }
     // Hash the password and create the user
@@ -134,7 +134,7 @@ const getUserByIdService = async (id: string) => {
 
 const completeUserProfileService = async (
   userId: string,
-  profileData: CompleteUserProfileInput
+  profileData: CompleteUserProfileInput,
 ) => {
   try {
     const user = await prisma.user.findUnique({
@@ -148,7 +148,7 @@ const completeUserProfileService = async (
         400,
         "User profile is already complete",
         "BAD_REQUEST",
-        "user"
+        "user",
       );
     }
     // second layer of validation to prevent overwriting unintended fields
@@ -172,6 +172,7 @@ const completeUserProfileService = async (
         phone: true,
         gender: true,
         bio: true,
+        emailVerified: true,
         profileStatus: true,
         createdAt: true,
         updatedAt: true,
@@ -197,11 +198,11 @@ const updateUserService = async (userId: string, payload: UpdateUserInput) => {
         400,
         "Complete your profile before updating",
         "BAD_REQUEST",
-        "user"
+        "user",
       );
     }
     const updateData = Object.fromEntries(
-      Object.entries(payload).filter(([, value]) => value !== undefined)
+      Object.entries(payload).filter(([, value]) => value !== undefined),
     );
     updateableUserFields.forEach((field) => {
       if (!(field in updateData)) {
@@ -246,7 +247,7 @@ const updateUserAvatarService = async (userId: string, image: string) => {
         400,
         "Complete your profile before updating avatar",
         "BAD_REQUEST",
-        "user"
+        "user",
       );
     }
 
