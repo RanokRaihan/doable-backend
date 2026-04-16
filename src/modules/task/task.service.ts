@@ -153,9 +153,14 @@ const deleteTaskService = async (taskId: string, userId: string) => {
   }
 };
 
-// insert image urls
-const insertImageUrls = async (taskId: string, imageUrls: string[]) => {
+// add task images service
+const addTaskImagesService = async (
+  taskId: string,
+  userId: string,
+  images: { url: string; altText?: string | undefined }[],
+) => {
   try {
+    // Fetch task and verify it exists and is not deleted
     const task = await prisma.task.findFirst({
       where: { id: taskId, isDeleted: false },
     });
@@ -163,14 +168,44 @@ const insertImageUrls = async (taskId: string, imageUrls: string[]) => {
       throw new AppError(404, "Task not found");
     }
 
-    const imageRecords = imageUrls.map((url, index) => ({
+    // Verify user is the task owner
+    if (task.postedById !== userId) {
+      throw new AppError(
+        403,
+        "Unauthorized: You can only add images to your own tasks",
+      );
+    }
+
+    // Check if task already has images
+    const existingImagesCount = await prisma.image.count({
+      where: { taskId },
+    });
+    if (existingImagesCount > 0) {
+      throw new AppError(
+        400,
+        "This task already has images. Remove existing images before adding new ones.",
+      );
+    }
+
+    // Prepare image records
+    const imageRecords = images.map((img) => ({
       taskId,
-      url,
-      altText: `Image ${index + 1} for task: ${task.title}`,
+      url: img.url,
+      altText: img.altText || null,
     }));
+
+    // Create images
     await prisma.image.createMany({ data: imageRecords });
+
+    // Fetch and return created images
+    const createdImages = await prisma.image.findMany({
+      where: { taskId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return createdImages;
   } catch (error) {
-    console.error("Error inserting image URLs:", error);
+    console.error("Error adding task images:", error);
     throw error;
   }
 };
@@ -313,12 +348,12 @@ const requestTaskRevisionService = async (taskId: string, userId: string) => {
 
 // Exporting the service functions for use in other parts of the application
 export {
+  addTaskImagesService,
   approveTaskCompletionService,
   createTaskService,
   deleteTaskService,
   getTaskByIdService,
   getTasksService,
-  insertImageUrls,
   markTaskAsCompletedService,
   markTaskAsInProgressService,
   requestTaskRevisionService,

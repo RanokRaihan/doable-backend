@@ -1,8 +1,13 @@
 import { RequestHandler } from "express";
 import { AppError, asyncHandler, sendResponse } from "../../utils";
 import { parseQuery } from "../../utils/query";
-import { CreateTaskRequest, UpdateTaskPayload } from "./task.interface";
 import {
+  AddTaskImagesRequest,
+  CreateTaskRequest,
+  UpdateTaskPayload,
+} from "./task.interface";
+import {
+  addTaskImagesService,
   approveTaskCompletionService,
   createTaskService,
   deleteTaskService,
@@ -130,8 +135,27 @@ const requestTaskRevisionController: RequestHandler = asyncHandler(
   },
 );
 
+const addTaskImagesController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const user = req.user;
+    const taskId = req.params.taskId;
+    const { images }: AddTaskImagesRequest = req.body;
+
+    if (!user || !user.id) {
+      throw new AppError(401, "Unauthorized");
+    }
+    if (!taskId) {
+      throw new AppError(400, "Task ID is required");
+    }
+
+    const result = await addTaskImagesService(taskId, user.id, images);
+    sendResponse(res, 201, "Images added to task successfully!", result);
+  },
+);
+
 // Exporting controllers for use in routes
 export {
+  addTaskImagesController,
   approveTaskCompletionController,
   createTaskController,
   deleteTaskController,

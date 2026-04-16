@@ -4,6 +4,7 @@ import { auth } from "../../middlewares/authMiddleware";
 import { authorize } from "../../middlewares/authorizeMiddleware";
 import validateRequest from "../../middlewares/validateRequest";
 import {
+  addTaskImagesController,
   approveTaskCompletionController,
   createTaskController,
   deleteTaskController,
@@ -15,6 +16,7 @@ import {
   updateTaskController,
 } from "./task.controller";
 import {
+  addTaskImagesSchema,
   createTaskSchema,
   getAllTasksSchema,
   updateTaskSchema,
@@ -42,6 +44,15 @@ router.delete(
   auth,
   authorize([UserRole.USER]),
   deleteTaskController,
+);
+
+// add images to task
+router.post(
+  "/:taskId/image",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(addTaskImagesSchema),
+  addTaskImagesController,
 );
 
 //task completion routes

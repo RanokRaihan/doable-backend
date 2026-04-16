@@ -2,7 +2,7 @@
 
 This file provides authoritative context for AI agents working in this repository. Read it fully before making any changes.
 
----
+## mandatory update AGENTS.md, CLAUDE.MD and api-cntract.md files after every update in enpoints and apis.
 
 ## Project Overview
 
@@ -177,6 +177,7 @@ All routes are prefixed with `/api/v1`.
 | POST   | `/post-task`              | JWT  | USER  | Create a new task              |
 | PATCH  | `/update-task/:id`        | JWT  | USER  | Update task details            |
 | DELETE | `/delete-task/:id`        | JWT  | USER  | Soft-delete a task             |
+| POST   | `/:taskId/image`          | JWT  | USER  | Add images to task (max 5)     |
 | GET    | `/`                       | —    | —     | Get all tasks (with filtering) |
 | GET    | `/:id`                    | —    | —     | Get task by ID                 |
 | PATCH  | `/mark-in-progress/:id`   | JWT  | USER  | Mark task as in-progress       |
