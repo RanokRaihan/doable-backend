@@ -10,6 +10,7 @@ import {
   deleteTaskController,
   deleteTaskImageController,
   getAllMyTasksController,
+  getMyPostedTaskController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
@@ -24,6 +25,7 @@ import {
   deleteTaskImageSchema,
   getAllMyTasksSchema,
   getAllTasksSchema,
+  getMyPostedTaskSchema,
   updateTaskImagesSchema,
   updateTaskSchema,
 } from "./task.validator";
@@ -118,6 +120,15 @@ router.get(
   authorize([UserRole.USER]),
   validateRequest(getAllMyTasksSchema),
   getAllMyTasksController,
+);
+
+// Get specific task posted by the current user
+router.get(
+  "/my-posted-task/:taskId",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(getMyPostedTaskSchema),
+  getMyPostedTaskController,
 );
 
 // public routes

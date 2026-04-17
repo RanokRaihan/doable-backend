@@ -158,6 +158,13 @@ const getAllMyTasksSchema = z.object({
     .strict(),
 });
 
+// Get specific task posted by the current user validation
+const getMyPostedTaskSchema = z.object({
+  params: z.object({
+    taskId: z.string().min(1, "Task ID is required"),
+  }),
+});
+
 const addTaskImagesSchema = z.object({
   params: z.object({
     taskId: z.string().min(1, "Task ID is required"),
@@ -226,7 +233,7 @@ export {
   deleteTaskImageSchema,
   getAllMyTasksSchema,
   getAllTasksSchema,
+  getMyPostedTaskSchema,
   updateTaskImagesSchema,
-  updateTaskSchema
+  updateTaskSchema,
 };
-

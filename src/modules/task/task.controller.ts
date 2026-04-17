@@ -14,6 +14,7 @@ import {
   deleteTaskImageService,
   deleteTaskService,
   getAllMyTasksService,
+  getMyPostedTaskService,
   getTaskByIdService,
   getTasksService,
   markTaskAsCompletedService,
@@ -59,6 +60,22 @@ const getAllMyTasksController: RequestHandler = asyncHandler(async (req, res) =>
   const parsedQuery = parseQuery(req, { maxLimit: 50, defaultLimit: 10 });
   const { data, meta } = await getAllMyTasksService(userId, parsedQuery);
   sendResponse(res, 200, "Your tasks retrieved successfully!", data, meta);
+});
+
+const getMyPostedTaskController: RequestHandler = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+  const taskId = req.params.taskId;
+  
+  if (!userId) {
+    throw new AppError(401, "Unauthorized");
+  }
+  
+  if (!taskId) {
+    throw new AppError(400, "Task ID is required");
+  }
+
+  const result = await getMyPostedTaskService(userId, taskId);
+  sendResponse(res, 200, "Your task retrieved successfully!", result);
 });
 
 const updateTaskController: RequestHandler = asyncHandler(async (req, res) => {
@@ -215,8 +232,7 @@ export {
   createTaskController,
   deleteTaskController,
   deleteTaskImageController,
-  getAllMyTasksController,
-  getTaskByIdController,
+  getAllMyTasksController, getMyPostedTaskController, getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
   markTaskCompletedController,

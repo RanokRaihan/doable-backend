@@ -107,6 +107,47 @@ const getAllMyTasksService = async (userId: string, parsedQuery: ParsedQuery) =>
   }
 };
 
+// Get specific task posted by the current user
+const getMyPostedTaskService = async (userId: string, taskId: string) => {
+  try {
+    const task = await prisma.task.findFirst({
+      where: { 
+        id: taskId, 
+        postedById: userId, 
+        isDeleted: false 
+      },
+      include: {
+        images: true,
+        applications: {
+          where: { status: { not: "WITHDRAWN" } },
+          include: {
+            applicant: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      omit: {
+        ...taskSensitiveFieldsOwner,
+      },
+    });
+    
+    if (!task) {
+      throw new AppError(404, "Task not found or you don't have permission to view it");
+    }
+    
+    return task;
+  } catch (error) {
+    console.error("Error fetching user's task:", error);
+    throw error;
+  }
+};
+
 //get task by id
 const getTaskByIdService = async (taskId: string) => {
   try {
@@ -507,8 +548,7 @@ export {
   createTaskService,
   deleteTaskImageService,
   deleteTaskService,
-  getAllMyTasksService,
-  getTaskByIdService,
+  getAllMyTasksService, getMyPostedTaskService, getTaskByIdService,
   getTasksService,
   markTaskAsCompletedService,
   markTaskAsInProgressService,
