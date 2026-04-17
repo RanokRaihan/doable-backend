@@ -139,7 +139,9 @@ const updateTaskImagesSchema = z.object({
   }),
   body: z
     .object({
-      keepImageIds: z.array(z.string().min(1, "Image ID cannot be empty")),
+      keepImageIds: z
+        .array(z.string().min(1, "Image ID cannot be empty"))
+        .default([]),
       newImages: z
         .array(
           z.object({
