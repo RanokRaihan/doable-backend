@@ -119,7 +119,6 @@ const addTaskImagesSchema = z.object({
         .array(
           z.object({
             url: z
-              .string()
               .url("Invalid URL format")
               .max(500, "URL must be 500 characters or less"),
             altText: z
