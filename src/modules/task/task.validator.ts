@@ -162,11 +162,19 @@ const updateTaskImagesSchema = z.object({
     }),
 });
 
+const deleteTaskImageSchema = z.object({
+  params: z.object({
+    taskId: z.string().min(1, "Task ID is required"),
+    imageId: z.string().min(1, "Image ID is required"),
+  }),
+});
+
 // exports
 
 export {
   addTaskImagesSchema,
   createTaskSchema,
+  deleteTaskImageSchema,
   getAllTasksSchema,
   updateTaskImagesSchema,
   updateTaskSchema,

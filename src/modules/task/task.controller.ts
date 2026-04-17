@@ -11,6 +11,7 @@ import {
   addTaskImagesService,
   approveTaskCompletionService,
   createTaskService,
+  deleteTaskImageService,
   deleteTaskService,
   getTaskByIdService,
   getTasksService,
@@ -177,6 +178,23 @@ const updateTaskImagesController: RequestHandler = asyncHandler(
     sendResponse(res, 200, "Task images updated successfully!", result);
   },
 );
+const deleteTaskImageController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const user = req.user;
+    const taskId = req.params.taskId;
+    const imageId = req.params.imageId;
+
+    if (!user || !user.id) {
+      throw new AppError(401, "Unauthorized");
+    }
+    if (!taskId || !imageId) {
+      throw new AppError(400, "Task ID and Image ID are required");
+    }
+
+    await deleteTaskImageService(taskId, imageId, user.id);
+    sendResponse(res, 200, "Image deleted successfully!", null);
+  },
+);
 
 // Exporting controllers for use in routes
 export {
@@ -184,6 +202,7 @@ export {
   approveTaskCompletionController,
   createTaskController,
   deleteTaskController,
+  deleteTaskImageController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,

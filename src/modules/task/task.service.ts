@@ -287,6 +287,43 @@ const updateTaskImagesService = async (
   }
 };
 
+// delete a single task image
+const deleteTaskImageService = async (
+  taskId: string,
+  imageId: string,
+  userId: string,
+) => {
+  try {
+    // Fetch task and the specific image in one query
+    const image = await prisma.image.findUnique({
+      where: { id: imageId },
+      include: {
+        task: { select: { postedById: true, isDeleted: true } },
+      },
+    });
+
+    if (!image || image.taskId !== taskId) {
+      throw new AppError(404, "Image not found");
+    }
+
+    if (image.task.isDeleted) {
+      throw new AppError(404, "Task not found");
+    }
+
+    if (image.task.postedById !== userId) {
+      throw new AppError(
+        403,
+        "Unauthorized: You can only delete images from your own tasks",
+      );
+    }
+
+    await prisma.image.delete({ where: { id: imageId } });
+  } catch (error) {
+    console.error("Error deleting task image:", error);
+    throw error;
+  }
+};
+
 // mark task as in progress
 const markTaskAsInProgressService = async (taskId: string, userId: string) => {
   try {
@@ -428,6 +465,7 @@ export {
   addTaskImagesService,
   approveTaskCompletionService,
   createTaskService,
+  deleteTaskImageService,
   deleteTaskService,
   getTaskByIdService,
   getTasksService,

@@ -8,6 +8,7 @@ import {
   approveTaskCompletionController,
   createTaskController,
   deleteTaskController,
+  deleteTaskImageController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
@@ -19,6 +20,7 @@ import {
 import {
   addTaskImagesSchema,
   createTaskSchema,
+  deleteTaskImageSchema,
   getAllTasksSchema,
   updateTaskImagesSchema,
   updateTaskSchema,
@@ -64,6 +66,15 @@ router.patch(
   authorize([UserRole.USER]),
   validateRequest(updateTaskImagesSchema),
   updateTaskImagesController,
+);
+
+// delete a single image from a task
+router.delete(
+  "/:taskId/image/:imageId",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(deleteTaskImageSchema),
+  deleteTaskImageController,
 );
 
 //task completion routes

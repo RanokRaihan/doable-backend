@@ -179,6 +179,7 @@ All routes are prefixed with `/api/v1`.
 | DELETE | `/delete-task/:id`        | JWT  | USER  | Soft-delete a task             |
 | POST   | `/:taskId/image`          | JWT  | USER  | Add images to task (max 5)     |
 | PATCH  | `/:taskId/image`          | JWT  | USER  | Update task images             |
+| DELETE | `/:taskId/image/:imageId` | JWT  | USER  | Delete a single task image     |
 | GET    | `/`                       | —    | —     | Get all tasks (with filtering) |
 | GET    | `/:id`                    | —    | —     | Get task by ID                 |
 | PATCH  | `/mark-in-progress/:id`   | JWT  | USER  | Mark task as in-progress       |

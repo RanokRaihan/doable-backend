@@ -846,19 +846,20 @@ Public profile. Response `data`:
 
 ### 6.3 Task — `/api/v1/task`
 
-| Method | Path                          | Auth | Roles | Description                            |
-| ------ | ----------------------------- | ---- | ----- | -------------------------------------- |
-| GET    | `/all-task`                   | —    | —     | List tasks with filters/pagination     |
-| GET    | `/:id`                        | —    | —     | Get task by ID                         |
-| POST   | `/post-task`                  | JWT  | USER  | Create task                            |
-| PATCH  | `/update-task/:id`            | JWT  | USER  | Update task (owner only)               |
-| DELETE | `/delete-task/:id`            | JWT  | USER  | Soft-delete task (owner only)          |
-| POST   | `/:taskId/image`              | JWT  | USER  | Add images to task (max 5, owner only) |
-| PATCH  | `/:taskId/image`              | JWT  | USER  | Update task images (owner only)        |
-| PATCH  | `/:taskId/mark-in-progress`   | JWT  | USER  | Tasker starts work                     |
-| PATCH  | `/:taskId/mark-completed`     | JWT  | USER  | Tasker marks done                      |
-| PATCH  | `/:taskId/approve-completion` | JWT  | USER  | Poster approves completion             |
-| PATCH  | `/:taskId/request-revision`   | JWT  | USER  | Poster requests revision               |
+| Method | Path                          | Auth | Roles | Description                             |
+| ------ | ----------------------------- | ---- | ----- | --------------------------------------- |
+| GET    | `/all-task`                   | —    | —     | List tasks with filters/pagination      |
+| GET    | `/:id`                        | —    | —     | Get task by ID                          |
+| POST   | `/post-task`                  | JWT  | USER  | Create task                             |
+| PATCH  | `/update-task/:id`            | JWT  | USER  | Update task (owner only)                |
+| DELETE | `/delete-task/:id`            | JWT  | USER  | Soft-delete task (owner only)           |
+| POST   | `/:taskId/image`              | JWT  | USER  | Add images to task (max 5, owner only)  |
+| PATCH  | `/:taskId/image`              | JWT  | USER  | Update task images (owner only)         |
+| DELETE | `/:taskId/image/:imageId`     | JWT  | USER  | Delete a single task image (owner only) |
+| PATCH  | `/:taskId/mark-in-progress`   | JWT  | USER  | Tasker starts work                      |
+| PATCH  | `/:taskId/mark-completed`     | JWT  | USER  | Tasker marks done                       |
+| PATCH  | `/:taskId/approve-completion` | JWT  | USER  | Poster approves completion              |
+| PATCH  | `/:taskId/request-revision`   | JWT  | USER  | Poster requests revision                |
 
 ---
 
@@ -996,6 +997,37 @@ Array<{
 - Pass `keepImageIds: []` and `newImages: [...]` to replace all images.
 - Pass `keepImageIds: [id1, id2]` and `newImages: []` to delete all except the kept ones.
 - The delete and create operations run in a single database transaction.
+
+---
+
+#### `DELETE /:taskId/image/:imageId`
+
+Deletes a single image from a task. Only the task owner can delete images.
+
+**Auth:** Bearer token required  
+**Roles:** USER
+
+**Params:**
+
+- `taskId` — ID of the task
+- `imageId` — ID of the image to delete
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Image deleted successfully!",
+  "data": null
+}
+```
+
+**Error Responses:**
+
+- `400` — Task ID or Image ID is missing
+- `403` — Unauthorized (not task owner)
+- `404` — Image not found or does not belong to this task
 
 ---
 
