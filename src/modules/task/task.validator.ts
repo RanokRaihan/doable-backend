@@ -133,11 +133,39 @@ const addTaskImagesSchema = z.object({
     .strict(),
 });
 
+const updateTaskImagesSchema = z.object({
+  params: z.object({
+    taskId: z.string().min(1, "Task ID is required"),
+  }),
+  body: z
+    .object({
+      keepImageIds: z.array(z.string().min(1, "Image ID cannot be empty")),
+      newImages: z
+        .array(
+          z.object({
+            url: z
+              .url("Invalid URL format")
+              .max(500, "URL must be 500 characters or less"),
+            altText: z
+              .string()
+              .max(255, "Alt text must be 255 characters or less")
+              .optional(),
+          }),
+        )
+        .default([]),
+    })
+    .strict()
+    .refine((data) => data.keepImageIds.length + data.newImages.length <= 5, {
+      message: "Total number of images cannot exceed 5",
+    }),
+});
+
 // exports
 
 export {
   addTaskImagesSchema,
   createTaskSchema,
   getAllTasksSchema,
+  updateTaskImagesSchema,
   updateTaskSchema,
 };

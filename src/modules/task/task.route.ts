@@ -14,11 +14,13 @@ import {
   markTaskCompletedController,
   requestTaskRevisionController,
   updateTaskController,
+  updateTaskImagesController,
 } from "./task.controller";
 import {
   addTaskImagesSchema,
   createTaskSchema,
   getAllTasksSchema,
+  updateTaskImagesSchema,
   updateTaskSchema,
 } from "./task.validator";
 
@@ -53,6 +55,15 @@ router.post(
   authorize([UserRole.USER]),
   validateRequest(addTaskImagesSchema),
   addTaskImagesController,
+);
+
+// update images of a task
+router.patch(
+  "/:taskId/image",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(updateTaskImagesSchema),
+  updateTaskImagesController,
 );
 
 //task completion routes

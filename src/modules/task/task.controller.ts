@@ -4,6 +4,7 @@ import { parseQuery } from "../../utils/query";
 import {
   AddTaskImagesRequest,
   CreateTaskRequest,
+  UpdateTaskImagesRequest,
   UpdateTaskPayload,
 } from "./task.interface";
 import {
@@ -16,6 +17,7 @@ import {
   markTaskAsCompletedService,
   markTaskAsInProgressService,
   requestTaskRevisionService,
+  updateTaskImagesService,
   updateTaskService,
 } from "./task.service";
 
@@ -153,6 +155,29 @@ const addTaskImagesController: RequestHandler = asyncHandler(
   },
 );
 
+const updateTaskImagesController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const user = req.user;
+    const taskId = req.params.taskId;
+    const { keepImageIds, newImages }: UpdateTaskImagesRequest = req.body;
+
+    if (!user || !user.id) {
+      throw new AppError(401, "Unauthorized");
+    }
+    if (!taskId) {
+      throw new AppError(400, "Task ID is required");
+    }
+
+    const result = await updateTaskImagesService(
+      taskId,
+      user.id,
+      keepImageIds,
+      newImages,
+    );
+    sendResponse(res, 200, "Task images updated successfully!", result);
+  },
+);
+
 // Exporting controllers for use in routes
 export {
   addTaskImagesController,
@@ -165,4 +190,5 @@ export {
   markTaskCompletedController,
   requestTaskRevisionController,
   updateTaskController,
+  updateTaskImagesController,
 };

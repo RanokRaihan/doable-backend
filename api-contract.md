@@ -854,6 +854,7 @@ Public profile. Response `data`:
 | PATCH  | `/update-task/:id`            | JWT  | USER  | Update task (owner only)               |
 | DELETE | `/delete-task/:id`            | JWT  | USER  | Soft-delete task (owner only)          |
 | POST   | `/:taskId/image`              | JWT  | USER  | Add images to task (max 5, owner only) |
+| PATCH  | `/:taskId/image`              | JWT  | USER  | Update task images (owner only)        |
 | PATCH  | `/:taskId/mark-in-progress`   | JWT  | USER  | Tasker starts work                     |
 | PATCH  | `/:taskId/mark-completed`     | JWT  | USER  | Tasker marks done                      |
 | PATCH  | `/:taskId/approve-completion` | JWT  | USER  | Poster approves completion             |
@@ -952,6 +953,49 @@ Array<{
 - `400` — Task already has images
 - `403` — Unauthorized (not task owner)
 - `404` — Task not found
+
+---
+
+#### `PATCH /:taskId/image`
+
+Update the images of a task. Owner only. Specify which existing images to keep, and provide any new images to add. Total of kept + new images must not exceed 5.
+
+Request:
+
+```ts
+{
+  keepImageIds: string[];        // IDs of existing images to retain (can be empty [])
+  newImages?: Array<{            // new images to add (defaults to [])
+    url: string;                 // valid URL, max 500 chars
+    altText?: string;            // optional, max 255 chars
+  }>;
+}
+```
+
+Response `data` (status 200): Final array of Image objects after update (ordered by `createdAt asc`):
+
+```ts
+Array<{
+  id: string;
+  url: string;
+  altText: string | null;
+  createdAt: string;
+  updatedAt: string;
+  taskId: string;
+}>;
+```
+
+**Error responses:**
+
+- `400` — `keepImageIds.length + newImages.length > 5` | Any `keepImageIds` entry does not belong to this task
+- `403` — Unauthorized (not task owner)
+- `404` — Task not found
+
+**Notes:**
+
+- Pass `keepImageIds: []` and `newImages: [...]` to replace all images.
+- Pass `keepImageIds: [id1, id2]` and `newImages: []` to delete all except the kept ones.
+- The delete and create operations run in a single database transaction.
 
 ---
 

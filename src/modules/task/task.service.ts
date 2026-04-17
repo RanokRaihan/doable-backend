@@ -210,6 +210,83 @@ const addTaskImagesService = async (
   }
 };
 
+// update task images service
+const updateTaskImagesService = async (
+  taskId: string,
+  userId: string,
+  keepImageIds: string[],
+  newImages: { url: string; altText?: string | undefined }[],
+) => {
+  try {
+    // Fetch task + existing images in a single query
+    const task = await prisma.task.findFirst({
+      where: { id: taskId, isDeleted: false },
+      include: { images: { select: { id: true } } },
+    });
+    if (!task) {
+      throw new AppError(404, "Task not found");
+    }
+
+    // Verify user is the task owner
+    if (task.postedById !== userId) {
+      throw new AppError(
+        403,
+        "Unauthorized: You can only update images of your own tasks",
+      );
+    }
+
+    // Validate that all keepImageIds actually belong to this task
+    const existingImageIds = new Set(task.images.map((img) => img.id));
+    const invalidIds = keepImageIds.filter((id) => !existingImageIds.has(id));
+    if (invalidIds.length > 0) {
+      throw new AppError(
+        400,
+        `The following image IDs do not belong to this task: ${invalidIds.join(", ")}`,
+      );
+    }
+
+    // Guard against total exceeding 5 (also validated by Zod)
+    if (keepImageIds.length + newImages.length > 5) {
+      throw new AppError(400, "Total number of images cannot exceed 5");
+    }
+
+    // Determine which existing images to delete
+    const keepSet = new Set(keepImageIds);
+    const idsToDelete = task.images
+      .map((img) => img.id)
+      .filter((id) => !keepSet.has(id));
+
+    // Delete removed images and create new ones atomically
+    await prisma.$transaction(async (tx) => {
+      if (idsToDelete.length > 0) {
+        await tx.image.deleteMany({
+          where: { id: { in: idsToDelete }, taskId },
+        });
+      }
+      if (newImages.length > 0) {
+        await tx.image.createMany({
+          data: newImages.map((img) => ({
+            taskId,
+            url: img.url,
+            altText: img.altText || null,
+          })),
+        });
+      }
+    });
+
+    // Return the final set of images for this task
+    const updatedImages = await prisma.image.findMany({
+      where: { taskId },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return updatedImages;
+  } catch (error) {
+    console.error("Error updating task images:", error);
+    throw error;
+  }
+};
+
 // mark task as in progress
 const markTaskAsInProgressService = async (taskId: string, userId: string) => {
   try {
@@ -357,5 +434,6 @@ export {
   markTaskAsCompletedService,
   markTaskAsInProgressService,
   requestTaskRevisionService,
+  updateTaskImagesService,
   updateTaskService,
 };
