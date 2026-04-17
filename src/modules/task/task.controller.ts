@@ -13,6 +13,7 @@ import {
   createTaskService,
   deleteTaskImageService,
   deleteTaskService,
+  getAllMyTasksService,
   getTaskByIdService,
   getTasksService,
   markTaskAsCompletedService,
@@ -47,6 +48,17 @@ const getTaskByIdController: RequestHandler = asyncHandler(async (req, res) => {
 
   const result = await getTaskByIdService(taskId);
   sendResponse(res, 200, "Task retrieved successfully!", result);
+});
+
+const getAllMyTasksController: RequestHandler = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    throw new AppError(401, "Unauthorized");
+  }
+
+  const parsedQuery = parseQuery(req, { maxLimit: 50, defaultLimit: 10 });
+  const { data, meta } = await getAllMyTasksService(userId, parsedQuery);
+  sendResponse(res, 200, "Your tasks retrieved successfully!", data, meta);
 });
 
 const updateTaskController: RequestHandler = asyncHandler(async (req, res) => {
@@ -203,11 +215,13 @@ export {
   createTaskController,
   deleteTaskController,
   deleteTaskImageController,
+  getAllMyTasksController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
   markTaskCompletedController,
   requestTaskRevisionController,
   updateTaskController,
-  updateTaskImagesController,
+  updateTaskImagesController
 };
+

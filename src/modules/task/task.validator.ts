@@ -109,6 +109,55 @@ const getAllTasksSchema = z.object({
     })
     .strict(),
 });
+
+// Get all tasks posted by the current user query validation
+const getAllMyTasksSchema = z.object({
+  query: z
+    .object({
+      page: z
+        .string()
+        .optional()
+        .refine((val) => !val || /^\d+$/.test(val), {
+          message: "Page must be a positive integer",
+        }),
+      limit: z
+        .string()
+        .optional()
+        .refine((val) => !val || /^\d+$/.test(val), {
+          message: "Limit must be a positive integer",
+        }),
+      sortBy: z
+        .enum(taskSortableFields, {
+          error: `Invalid sortBy field! Allowed fields are: ${taskSortableFields.join(", ")}`,
+        })
+        .optional(),
+      sortOrder: z
+        .enum(["asc", "desc"], {
+          error: "sortOrder must be either 'asc' or 'desc'",
+        })
+        .optional(),
+      searchTerm: z.string().optional(),
+      status: z
+        .enum(TaskStatus, {
+          error: `Invalid status! Allowed statuses are: ${Object.values(TaskStatus).join(", ")}`,
+        })
+        .optional(),
+      category: z
+        .enum(TaskCategory, {
+          error: `Invalid category! Allowed categories are: ${Object.values(
+            TaskCategory,
+          ).join(", ")}`,
+        })
+        .optional(),
+      priority: z
+        .enum(TaskPriority, {
+          error: `Invalid priority! Allowed priorities are: ${Object.values(TaskPriority).join(", ")}`,
+        })
+        .optional(),
+    })
+    .strict(),
+});
+
 const addTaskImagesSchema = z.object({
   params: z.object({
     taskId: z.string().min(1, "Task ID is required"),
@@ -175,7 +224,9 @@ export {
   addTaskImagesSchema,
   createTaskSchema,
   deleteTaskImageSchema,
+  getAllMyTasksSchema,
   getAllTasksSchema,
   updateTaskImagesSchema,
-  updateTaskSchema,
+  updateTaskSchema
 };
+

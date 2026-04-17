@@ -9,6 +9,7 @@ import {
   createTaskController,
   deleteTaskController,
   deleteTaskImageController,
+  getAllMyTasksController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
@@ -21,6 +22,7 @@ import {
   addTaskImagesSchema,
   createTaskSchema,
   deleteTaskImageSchema,
+  getAllMyTasksSchema,
   getAllTasksSchema,
   updateTaskImagesSchema,
   updateTaskSchema,
@@ -107,6 +109,15 @@ router.patch(
   auth,
   authorize([UserRole.USER]),
   requestTaskRevisionController,
+);
+
+// Get all tasks posted by the current user
+router.get(
+  "/my-posted-tasks",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(getAllMyTasksSchema),
+  getAllMyTasksController,
 );
 
 // public routes

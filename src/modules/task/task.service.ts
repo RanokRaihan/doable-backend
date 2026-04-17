@@ -67,6 +67,46 @@ const getTasksService = async (parsedQuery: ParsedQuery) => {
   }
 };
 
+// Get all tasks posted by the current user
+const getAllMyTasksService = async (userId: string, parsedQuery: ParsedQuery) => {
+  try {
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      searchFields: TaskSearchFields,
+      filterFields: taskFilterableFields,
+      sortFields: taskSortableFields,
+    });
+    
+    const mergedWhere = {
+      ...where,
+      postedById: userId,
+      isDeleted: false,
+    };
+    
+    const queryOptions: any = {
+      where: mergedWhere,
+      skip,
+      take,
+      include: { images: true },
+      omit: { ...taskSensitiveFieldsOwner },
+    };
+
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
+    }
+    
+    const [tasks, totalCount] = await Promise.all([
+      prisma.task.findMany(queryOptions),
+      prisma.task.count({ where: mergedWhere }),
+    ]);
+    
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: tasks, meta };
+  } catch (error) {
+    console.error("Error fetching user's tasks:", error);
+    throw error;
+  }
+};
+
 //get task by id
 const getTaskByIdService = async (taskId: string) => {
   try {
@@ -467,11 +507,13 @@ export {
   createTaskService,
   deleteTaskImageService,
   deleteTaskService,
+  getAllMyTasksService,
   getTaskByIdService,
   getTasksService,
   markTaskAsCompletedService,
   markTaskAsInProgressService,
   requestTaskRevisionService,
   updateTaskImagesService,
-  updateTaskService,
+  updateTaskService
 };
+
