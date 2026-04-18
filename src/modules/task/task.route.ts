@@ -139,11 +139,7 @@ router.get(
   validateRequest(getAllTasksSchema),
   getTasksController,
 );
-router.get(
-  "/recently-posted",
-  optionalAuth,
-  getRecentlyPostedTasksController,
-);
+router.get("/recently-posted", optionalAuth, getRecentlyPostedTasksController);
 router.get("/:id", getTaskByIdController);
 
 // Export the router to be used in the main application

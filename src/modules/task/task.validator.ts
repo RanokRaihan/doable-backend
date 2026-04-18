@@ -95,16 +95,26 @@ const getAllTasksSchema = z.object({
         })
         .optional(),
       category: z
-        .enum(TaskCategory, {
-          error: `Invalid category! Allowed categories are: ${Object.values(
-            TaskCategory,
-          ).join(", ")}`,
-        })
+        .union([
+          z.enum(TaskCategory),
+          z.string().refine((val) => {
+            const categories = val.split(',').map(cat => cat.trim());
+            return categories.every(cat => Object.values(TaskCategory).includes(cat as TaskCategory));
+          }, {
+            message: `Invalid category! Allowed categories are: ${Object.values(TaskCategory).join(', ')}`
+          })
+        ])
         .optional(),
       priority: z
-        .enum(TaskPriority, {
-          error: `Invalid priority! Allowed priorities are: ${Object.values(TaskPriority).join(", ")}`,
-        })
+        .union([
+          z.enum(TaskPriority),
+          z.string().refine((val) => {
+            const priorities = val.split(',').map(pri => pri.trim());
+            return priorities.every(pri => Object.values(TaskPriority).includes(pri as TaskPriority));
+          }, {
+            message: `Invalid priority! Allowed priorities are: ${Object.values(TaskPriority).join(', ')}`
+          })
+        ])
         .optional(),
     })
     .strict(),
@@ -138,16 +148,26 @@ const getAllMyTasksSchema = z.object({
         .optional(),
       searchTerm: z.string().optional(),
       category: z
-        .enum(TaskCategory, {
-          error: `Invalid category! Allowed categories are: ${Object.values(
-            TaskCategory,
-          ).join(", ")}`,
-        })
+        .union([
+          z.enum(TaskCategory),
+          z.string().refine((val) => {
+            const categories = val.split(',').map(cat => cat.trim());
+            return categories.every(cat => Object.values(TaskCategory).includes(cat as TaskCategory));
+          }, {
+            message: `Invalid category! Allowed categories are: ${Object.values(TaskCategory).join(', ')}`
+          })
+        ])
         .optional(),
       priority: z
-        .enum(TaskPriority, {
-          error: `Invalid priority! Allowed priorities are: ${Object.values(TaskPriority).join(", ")}`,
-        })
+        .union([
+          z.enum(TaskPriority),
+          z.string().refine((val) => {
+            const priorities = val.split(',').map(pri => pri.trim());
+            return priorities.every(pri => Object.values(TaskPriority).includes(pri as TaskPriority));
+          }, {
+            message: `Invalid priority! Allowed priorities are: ${Object.values(TaskPriority).join(', ')}`
+          })
+        ])
         .optional(),
     })
     .strict(),
