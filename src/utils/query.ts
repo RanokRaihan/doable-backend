@@ -88,9 +88,9 @@ function buildPrismaQuery(
     if (value === undefined) return;
     if (filterFields.length && !filterFields.includes(key)) return;
 
-    // Handle multiple value filtering (category and priority)
+    // Handle multiple value filtering (category, priority, and status)
     if (
-      (key === "category" || key === "priority") &&
+      (key === "category" || key === "priority" || key === "status") &&
       typeof value === "string" &&
       value.includes(",")
     ) {
