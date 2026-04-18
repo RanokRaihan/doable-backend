@@ -14,6 +14,7 @@ import {
 } from "./application.controller";
 import {
   createApplicationSchema,
+  getAllApplicationsForTaskSchema,
   getAllMyApplicationsSchema,
   rejectApplicationSchema,
   withdrawApplicationSchema,
@@ -43,6 +44,7 @@ router.get(
   "/task/:taskId",
   auth,
   authorize([UserRole.USER]),
+  validateRequest(getAllApplicationsForTaskSchema),
   getAllApplicationsForTaskController,
 );
 

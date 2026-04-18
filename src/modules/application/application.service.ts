@@ -164,6 +164,7 @@ const getAllMyApplicationsService = async (
 const getAllApplicationsForTaskService = async (
   taskId: string,
   userId: string,
+  parsedQuery: ParsedQuery,
 ) => {
   try {
     const task = await prisma.task.findUnique({
@@ -177,14 +178,47 @@ const getAllApplicationsForTaskService = async (
     if (task.postedById !== userId) {
       throw new AppError(
         403,
-        "Forbidden: You are authorized to view these applications",
+        "Forbidden: You are not authorized to view these applications",
       );
     }
 
-    const applications = await prisma.application.findMany({
-      where: {
-        taskId: taskId,
-      },
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      searchFields: ApplicationSearchFields,
+      filterFields: applicationFilterableFields,
+      sortFields: applicationSortableFields,
+    });
+
+    const mergedWhere = {
+      ...where,
+      taskId: taskId,
+    };
+
+    // Handle nested search for applicant name and message
+    if (parsedQuery.search.searchTerm) {
+      const searchTerm = parsedQuery.search.searchTerm;
+      mergedWhere.OR = [
+        {
+          message: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+        {
+          applicant: {
+            name: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+      ];
+      delete mergedWhere.message; // Remove the direct message search since it's in OR
+    }
+
+    const queryOptions: any = {
+      where: mergedWhere,
+      skip,
+      take,
       select: {
         id: true,
         message: true,
@@ -201,9 +235,19 @@ const getAllApplicationsForTaskService = async (
           },
         },
       },
-    });
+    };
 
-    return applications;
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
+    }
+
+    const [applications, totalCount] = await Promise.all([
+      prisma.application.findMany(queryOptions),
+      prisma.application.count({ where: mergedWhere }),
+    ]);
+
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: applications, meta };
   } catch (error) {
     console.error("Error fetching applications for task:", error);
     throw error;

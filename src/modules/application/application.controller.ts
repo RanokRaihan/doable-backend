@@ -74,13 +74,19 @@ const getAllApplicationsForTaskController: RequestHandler = asyncHandler(
       throw new AppError(400, "Task ID is required");
     }
 
-    const applications = await getAllApplicationsForTaskService(taskId, userId);
+    const parsedQuery = parseQuery(req, { maxLimit: 50, defaultLimit: 10 });
+    const { data, meta } = await getAllApplicationsForTaskService(
+      taskId,
+      userId,
+      parsedQuery,
+    );
 
     return sendResponse(
       res,
       200,
       "Fetched all applications for task successfully",
-      applications,
+      data,
+      meta,
     );
   },
 );
