@@ -137,11 +137,6 @@ const getAllMyTasksSchema = z.object({
         })
         .optional(),
       searchTerm: z.string().optional(),
-      status: z
-        .enum(TaskStatus, {
-          error: `Invalid status! Allowed statuses are: ${Object.values(TaskStatus).join(", ")}`,
-        })
-        .optional(),
       category: z
         .enum(TaskCategory, {
           error: `Invalid category! Allowed categories are: ${Object.values(
@@ -235,5 +230,6 @@ export {
   getAllTasksSchema,
   getMyPostedTaskSchema,
   updateTaskImagesSchema,
-  updateTaskSchema,
+  updateTaskSchema
 };
+

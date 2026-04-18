@@ -552,6 +552,30 @@ const requestTaskRevisionService = async (taskId: string, userId: string) => {
   }
 };
 
+// Get recently posted tasks (latest 3, exclude current user's tasks)
+const getRecentlyPostedTasksService = async (
+  userId: string | undefined,
+) => {
+  try {
+    const tasks = await prisma.task.findMany({
+      where: {
+        isDeleted: false,
+        status: "OPEN",
+        ...(userId ? { NOT: { postedById: userId } } : {}),
+      },
+      include: { images: true },
+      omit: { ...taskSensitiveFieldsPublic },
+      orderBy: { createdAt: 'desc' },
+      take: 3,
+    });
+
+    return tasks;
+  } catch (error) {
+    console.error("Error fetching recently posted tasks:", error);
+    throw error;
+  }
+};
+
 // Exporting the service functions for use in other parts of the application
 export {
   addTaskImagesService,
@@ -561,11 +585,13 @@ export {
   deleteTaskService,
   getAllMyTasksService,
   getMyPostedTaskService,
+  getRecentlyPostedTasksService,
   getTaskByIdService,
   getTasksService,
   markTaskAsCompletedService,
   markTaskAsInProgressService,
   requestTaskRevisionService,
   updateTaskImagesService,
-  updateTaskService,
+  updateTaskService
 };
+

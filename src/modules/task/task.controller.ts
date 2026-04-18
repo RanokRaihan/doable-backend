@@ -15,6 +15,7 @@ import {
   deleteTaskService,
   getAllMyTasksService,
   getMyPostedTaskService,
+  getRecentlyPostedTasksService,
   getTaskByIdService,
   getTasksService,
   markTaskAsCompletedService,
@@ -231,6 +232,14 @@ const deleteTaskImageController: RequestHandler = asyncHandler(
   },
 );
 
+const getRecentlyPostedTasksController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const user = req.user;
+    const tasks = await getRecentlyPostedTasksService(user?.id);
+    sendResponse(res, 200, "Recently posted tasks retrieved successfully!", tasks);
+  },
+);
+
 // Exporting controllers for use in routes
 export {
   addTaskImagesController,
@@ -240,11 +249,13 @@ export {
   deleteTaskImageController,
   getAllMyTasksController,
   getMyPostedTaskController,
+  getRecentlyPostedTasksController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
   markTaskCompletedController,
   requestTaskRevisionController,
   updateTaskController,
-  updateTaskImagesController,
+  updateTaskImagesController
 };
+

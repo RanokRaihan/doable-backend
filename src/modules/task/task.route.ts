@@ -11,6 +11,7 @@ import {
   deleteTaskImageController,
   getAllMyTasksController,
   getMyPostedTaskController,
+  getRecentlyPostedTasksController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
@@ -137,6 +138,11 @@ router.get(
   optionalAuth,
   validateRequest(getAllTasksSchema),
   getTasksController,
+);
+router.get(
+  "/recently-posted",
+  optionalAuth,
+  getRecentlyPostedTasksController,
 );
 router.get("/:id", getTaskByIdController);
 
