@@ -57,3 +57,36 @@ export const auth = asyncHandler(
     next();
   },
 );
+
+export const optionalAuth = asyncHandler(
+  async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    // Extract token with optional chaining
+    const authHeader = req.headers.authorization;
+
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
+
+    // If no token provided, just continue without setting user
+    if (!token) {
+      return next();
+    }
+    try {
+      // Verify token
+      const decoded = jwt.verify(token, config.jwt.accessSecret) as IJwtPayload;
+
+      // Get user and validate existence
+      const user = await getAuthUser(decoded.userId);
+      if (!user || user.isDeleted) {
+        return next();
+      }
+
+      // Attach user to request and proceed
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error("Error in optionalAuth middleware:", error);
+      next();
+    }
+  },
+);

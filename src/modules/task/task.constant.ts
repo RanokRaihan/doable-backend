@@ -21,7 +21,7 @@ const taskSensitiveFieldsApplicant = {
 };
 
 const TaskSearchFields = ["title", "description", "location"];
-const taskFilterableFields = ["category", "status", "priority"];
+const taskFilterableFields = ["category", "priority"];
 const taskSortableFields = ["createdAt", "updatedAt", "title"];
 
 export {

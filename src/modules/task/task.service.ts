@@ -33,7 +33,10 @@ const createTaskService = async (taskData: CreateTaskPayload) => {
 };
 //TODO:update get all task according to usecase
 
-const getTasksService = async (parsedQuery: ParsedQuery) => {
+const getTasksService = async (
+  parsedQuery: ParsedQuery,
+  userId: string | undefined,
+) => {
   try {
     const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
       searchFields: TaskSearchFields,
@@ -43,6 +46,8 @@ const getTasksService = async (parsedQuery: ParsedQuery) => {
     const mergedWhere = {
       ...where,
       isDeleted: false,
+      status: "OPEN",
+      ...(userId ? { NOT: { postedById: userId } } : {}),
     };
     const queryOptions: any = {
       where: mergedWhere,
@@ -68,20 +73,23 @@ const getTasksService = async (parsedQuery: ParsedQuery) => {
 };
 
 // Get all tasks posted by the current user
-const getAllMyTasksService = async (userId: string, parsedQuery: ParsedQuery) => {
+const getAllMyTasksService = async (
+  userId: string,
+  parsedQuery: ParsedQuery,
+) => {
   try {
     const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
       searchFields: TaskSearchFields,
       filterFields: taskFilterableFields,
       sortFields: taskSortableFields,
     });
-    
+
     const mergedWhere = {
       ...where,
       postedById: userId,
       isDeleted: false,
     };
-    
+
     const queryOptions: any = {
       where: mergedWhere,
       skip,
@@ -93,12 +101,12 @@ const getAllMyTasksService = async (userId: string, parsedQuery: ParsedQuery) =>
     if (orderBy) {
       queryOptions.orderBy = orderBy;
     }
-    
+
     const [tasks, totalCount] = await Promise.all([
       prisma.task.findMany(queryOptions),
       prisma.task.count({ where: mergedWhere }),
     ]);
-    
+
     const meta = buildMeta(totalCount, parsedQuery.pagination);
     return { data: tasks, meta };
   } catch (error) {
@@ -111,10 +119,10 @@ const getAllMyTasksService = async (userId: string, parsedQuery: ParsedQuery) =>
 const getMyPostedTaskService = async (userId: string, taskId: string) => {
   try {
     const task = await prisma.task.findFirst({
-      where: { 
-        id: taskId, 
-        postedById: userId, 
-        isDeleted: false 
+      where: {
+        id: taskId,
+        postedById: userId,
+        isDeleted: false,
       },
       include: {
         images: true,
@@ -136,11 +144,14 @@ const getMyPostedTaskService = async (userId: string, taskId: string) => {
         ...taskSensitiveFieldsOwner,
       },
     });
-    
+
     if (!task) {
-      throw new AppError(404, "Task not found or you don't have permission to view it");
+      throw new AppError(
+        404,
+        "Task not found or you don't have permission to view it",
+      );
     }
-    
+
     return task;
   } catch (error) {
     console.error("Error fetching user's task:", error);
@@ -548,12 +559,13 @@ export {
   createTaskService,
   deleteTaskImageService,
   deleteTaskService,
-  getAllMyTasksService, getMyPostedTaskService, getTaskByIdService,
+  getAllMyTasksService,
+  getMyPostedTaskService,
+  getTaskByIdService,
   getTasksService,
   markTaskAsCompletedService,
   markTaskAsInProgressService,
   requestTaskRevisionService,
   updateTaskImagesService,
-  updateTaskService
+  updateTaskService,
 };
-

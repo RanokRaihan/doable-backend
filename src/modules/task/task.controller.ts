@@ -36,8 +36,10 @@ const createTaskController: RequestHandler = asyncHandler(async (req, res) => {
 });
 
 const getTasksController: RequestHandler = asyncHandler(async (req, res) => {
+  const user = req.user;
+  console.log("User in getTasksController:", user);
   const parsedQuery = parseQuery(req, { maxLimit: 50, defaultLimit: 10 });
-  const { data, meta } = await getTasksService(parsedQuery);
+  const { data, meta } = await getTasksService(parsedQuery, user?.id);
   sendResponse(res, 200, "Tasks retrieved successfully!", data, meta);
 });
 
@@ -51,32 +53,36 @@ const getTaskByIdController: RequestHandler = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Task retrieved successfully!", result);
 });
 
-const getAllMyTasksController: RequestHandler = asyncHandler(async (req, res) => {
-  const userId = req.user?.id;
-  if (!userId) {
-    throw new AppError(401, "Unauthorized");
-  }
+const getAllMyTasksController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError(401, "Unauthorized");
+    }
 
-  const parsedQuery = parseQuery(req, { maxLimit: 50, defaultLimit: 10 });
-  const { data, meta } = await getAllMyTasksService(userId, parsedQuery);
-  sendResponse(res, 200, "Your tasks retrieved successfully!", data, meta);
-});
+    const parsedQuery = parseQuery(req, { maxLimit: 50, defaultLimit: 10 });
+    const { data, meta } = await getAllMyTasksService(userId, parsedQuery);
+    sendResponse(res, 200, "Your tasks retrieved successfully!", data, meta);
+  },
+);
 
-const getMyPostedTaskController: RequestHandler = asyncHandler(async (req, res) => {
-  const userId = req.user?.id;
-  const taskId = req.params.taskId;
-  
-  if (!userId) {
-    throw new AppError(401, "Unauthorized");
-  }
-  
-  if (!taskId) {
-    throw new AppError(400, "Task ID is required");
-  }
+const getMyPostedTaskController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const userId = req.user?.id;
+    const taskId = req.params.taskId;
 
-  const result = await getMyPostedTaskService(userId, taskId);
-  sendResponse(res, 200, "Your task retrieved successfully!", result);
-});
+    if (!userId) {
+      throw new AppError(401, "Unauthorized");
+    }
+
+    if (!taskId) {
+      throw new AppError(400, "Task ID is required");
+    }
+
+    const result = await getMyPostedTaskService(userId, taskId);
+    sendResponse(res, 200, "Your task retrieved successfully!", result);
+  },
+);
 
 const updateTaskController: RequestHandler = asyncHandler(async (req, res) => {
   const user = req.user;
@@ -232,12 +238,13 @@ export {
   createTaskController,
   deleteTaskController,
   deleteTaskImageController,
-  getAllMyTasksController, getMyPostedTaskController, getTaskByIdController,
+  getAllMyTasksController,
+  getMyPostedTaskController,
+  getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
   markTaskCompletedController,
   requestTaskRevisionController,
   updateTaskController,
-  updateTaskImagesController
+  updateTaskImagesController,
 };
-

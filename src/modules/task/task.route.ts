@@ -1,6 +1,6 @@
 import { UserRole } from "@prisma/client";
 import { Router } from "express";
-import { auth } from "../../middlewares/authMiddleware";
+import { auth, optionalAuth } from "../../middlewares/authMiddleware";
 import { authorize } from "../../middlewares/authorizeMiddleware";
 import validateRequest from "../../middlewares/validateRequest";
 import {
@@ -132,7 +132,12 @@ router.get(
 );
 
 // public routes
-router.get("/all-task", validateRequest(getAllTasksSchema), getTasksController);
+router.get(
+  "/all-task",
+  optionalAuth,
+  validateRequest(getAllTasksSchema),
+  getTasksController,
+);
 router.get("/:id", getTaskByIdController);
 
 // Export the router to be used in the main application
