@@ -263,19 +263,20 @@ const getApplicationByIdService = async (
     const application = await prisma.application.findUnique({
       where: { id: applicationId },
       include: {
-        applicant: {
+        task: {
           select: {
             id: true,
-            name: true,
+            title: true,
+            description: true,
+            status: true,
+            postedById: true,
+            postedBy: {
+              select: { id: true, name: true, image: true },
+            },
           },
         },
-        task: {
-          omit: {
-            approvedApplicationId: true,
-            isDeleted: true,
-            deletedAt: true,
-            deletedBy: true,
-          },
+        applicant: {
+          select: { id: true, name: true, image: true },
         },
       },
     });
