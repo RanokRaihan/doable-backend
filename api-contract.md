@@ -667,6 +667,7 @@ Response `data`:
 | PATCH  | `/update-profile`       | JWT  | USER  | Update profile fields                          |
 | PATCH  | `/update-avatar`        | JWT  | USER  | Update avatar URL                              |
 | DELETE | `/delete-account`       | JWT  | USER  | Soft-delete own account                        |
+| GET    | `/:id/public`           | —    | —     | Get full public profile with stats and reviews |
 | GET    | `/:id`                  | —    | —     | Get public profile by ID                       |
 
 ---
@@ -841,6 +842,68 @@ Public profile. Response `data`:
   bio: string | null;
 }
 ```
+
+---
+
+#### `GET /:id/public`
+
+Full public profile with stats, reviews, and recent tasks. No auth required.
+
+**Params:** `id` — user CUID (min length 1).
+
+**Errors:**
+- `400` — validation error (empty id)
+- `404 NOT_FOUND` — user not found or soft-deleted
+
+**Response `data` (status 200):**
+
+```ts
+{
+  id: string;
+  name: string;
+  image: string | null;
+  bio: string | null;
+  gender: "MALE" | "FEMALE" | "OTHER" | null;
+  memberSince: string; // ISO date (User.createdAt)
+
+  stats: {
+    asPoster: {
+      tasksPosted: number;        // non-deleted tasks, excluding DRAFT
+      averageRating: number | null; // avg rating received as task poster; null if no reviews
+      reviewCount: number;
+    };
+    asDoer: {
+      tasksCompleted: number;     // approved applications where task.status = COMPLETED
+      completionRate: number | null; // tasksCompleted / totalApprovedApplications (0–1, 2dp); null if no approved apps
+      averageRating: number | null; // avg rating received as task doer; null if no reviews
+      reviewCount: number;
+    };
+  };
+
+  // Up to 10 public reviews, newest first
+  reviews: Array<{
+    id: string;
+    rating: number;
+    comment: string | null;
+    createdAt: string;
+    author: { id: string; name: string; image: string | null };
+    task: { id: string; title: string };
+  }>;
+
+  // Up to 10 tasks with status OPEN | IN_PROGRESS | COMPLETED, newest first
+  postedTasks: Array<{
+    id: string;
+    title: string;
+    category: TaskCategory;
+    status: TaskStatus;
+    baseCompensation: string; // Decimal serialized as string
+    location: string;
+    createdAt: string;
+  }>;
+}
+```
+
+**Privacy guarantees:** `email`, `password`, `phone`, `address`, `dateOfBirth`, `role`, `profileStatus`, `emailVerified`, all auth/security fields, and soft-delete fields are **never** included. DRAFT, CANCELLED, and EXPIRED tasks are excluded. Reviews with `isPublic = false` are excluded.
 
 ---
 
@@ -1740,6 +1803,7 @@ const publicRoutes = [
   "GET  /api/v1/task/all-task",
   "GET  /api/v1/task/:id",
   "GET  /api/v1/user/:id",
+  "GET  /api/v1/user/:id/public",
   "GET  /api/v1/user/",
   "POST /api/v1/user/register/credentials",
   "POST /api/v1/auth/login",

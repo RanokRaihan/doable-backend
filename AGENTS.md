@@ -165,6 +165,7 @@ All routes are prefixed with `/api/v1`.
 | POST   | `/register/credentials` | —    | —     | Register with email/pass |
 | GET    | `/my-profile`           | JWT  | USER  | Get own profile          |
 | PATCH  | `/complete-profile`     | JWT  | USER  | Complete user profile    |
+| GET    | `/:id/public`           | —    | —     | Get public profile of a user |
 | GET    | `/:id`                  | —    | —     | Get user by ID           |
 | PATCH  | `/update/:id`           | JWT  | USER  | Update user info         |
 | PATCH  | `/update-avatar`        | JWT  | USER  | Update profile avatar    |

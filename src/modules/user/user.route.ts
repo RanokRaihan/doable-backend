@@ -7,6 +7,7 @@ import {
   createUserController,
   deleteAccountController,
   getAllUsersController,
+  getPublicProfile,
   getUserByIdController,
   getUserProfileController,
   updateUserAvatarController,
@@ -15,6 +16,7 @@ import {
 import {
   completeUserProfileSchema,
   createUserSchema,
+  getPublicProfileSchema,
   updateAvatarSchema,
   updateUserSchema,
 } from "./user.validator";
@@ -64,6 +66,12 @@ router.delete(
   auth,
   authorize(["USER"]),
   deleteAccountController
+);
+// public profile with stats, reviews, tasks
+router.get(
+  "/:id/public",
+  validateRequest(getPublicProfileSchema),
+  getPublicProfile,
 );
 // get user public profile by id
 router.get("/:id", getUserByIdController);

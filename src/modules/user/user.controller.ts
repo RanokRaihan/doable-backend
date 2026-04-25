@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { SignOptions } from "jsonwebtoken";
 import config from "../../config";
-import { AppError, asyncHandler, sendResponse } from "../../utils";
+import { AppError, ResponseHandler, asyncHandler, sendResponse } from "../../utils";
 import { createToken } from "../../utils/createToken";
 import { IJwtPayload } from "../auth/auth.interface";
 import { getCurrentUserService } from "../auth/auth.service";
@@ -10,6 +10,7 @@ import {
   createUserService,
   deleteAccountService,
   getAllUsersService,
+  getPublicProfileService,
   getUserByEmailService,
   getUserByIdService,
   updateUserAvatarService,
@@ -162,11 +163,23 @@ const getUserProfileController: RequestHandler = asyncHandler(
     sendResponse(res, 200, "User profile retrieved successfully!", userProfile);
   },
 );
+const getPublicProfile: RequestHandler = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    throw new AppError(400, "User ID is required!");
+  }
+  const result = await getPublicProfileService(id);
+  return ResponseHandler.ok(res, "Public profile retrieved", result, {
+    path: req.path,
+  });
+});
+
 export {
   completeUserProfileController,
   createUserController,
   deleteAccountController,
   getAllUsersController,
+  getPublicProfile,
   getUserByEmailController,
   getUserByIdController,
   getUserProfileController,
