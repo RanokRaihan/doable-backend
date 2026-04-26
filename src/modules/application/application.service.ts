@@ -1,6 +1,7 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
 import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
+import { paymentSelectFieldsApplicant } from "../payment/payment.constant";
 import {
   applicationFilterableFields,
   ApplicationSearchFields,
@@ -294,6 +295,39 @@ const getApplicationByIdService = async (
         403,
         "Forbidden: You are not authorized to view this application",
       );
+    }
+
+    // If task status is PAYMENT_PROCESSING and application is APPROVED, include payment information
+    if (
+      application.task.status === "PAYMENT_PROCESSING" &&
+      application.status === "APPROVED"
+    ) {
+      const applicationWithPayment = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: {
+          task: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              status: true,
+              postedById: true,
+              postedBy: {
+                select: { id: true, name: true, image: true },
+              },
+              payments: {
+                select: {
+                  ...paymentSelectFieldsApplicant,
+                },
+              },
+            },
+          },
+          applicant: {
+            select: { id: true, name: true, image: true },
+          },
+        },
+      });
+      return applicationWithPayment;
     }
 
     return application;

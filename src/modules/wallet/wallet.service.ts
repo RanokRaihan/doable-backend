@@ -1,6 +1,11 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
 import { createTnxId } from "../../utils/createTnxId";
+import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
+import {
+  commissionDueFilterableFields,
+  commissionDueSortableFields,
+} from "./wallet.constant";
 
 const getMyWalletService = async (userId: string) => {
   try {
@@ -33,7 +38,7 @@ const getAllWalletTransactionsService = async (userId: string) => {
 };
 const getWalletTransactionByIdService = async (
   userId: string,
-  tnxId: string
+  tnxId: string,
 ) => {
   try {
     const transaction = await prisma.walletTransaction.findUnique({
@@ -46,7 +51,7 @@ const getWalletTransactionByIdService = async (
     if (transaction.wallet.userId !== userId) {
       throw new AppError(
         403,
-        "You are not authorized to view this transaction"
+        "You are not authorized to view this transaction",
       );
     }
     return transaction;
@@ -55,8 +60,10 @@ const getWalletTransactionByIdService = async (
     throw error;
   }
 };
-const getAllCommissionsDueService = async (userId: string) => {
-  //update: fetch for different statuses later
+const getAllCommissionsDueService = async (
+  userId: string,
+  parsedQuery: ParsedQuery,
+) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId, isDeleted: false },
@@ -65,15 +72,34 @@ const getAllCommissionsDueService = async (userId: string) => {
     if (!user || !user.wallet?.id) {
       throw new AppError(404, "User or wallet not found");
     }
-    const commissionsDue = await prisma.commissionDue.findMany({
-      where: { walletId: user.wallet?.id, status: "DUE" },
-      omit: {
-        paidAt: true,
-        paidViaPayment: true,
-        paidViaTxn: true,
-      },
+
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      sortFields: commissionDueSortableFields,
+      filterFields: commissionDueFilterableFields,
     });
-    return commissionsDue;
+
+    const mergedWhere = {
+      ...where,
+      walletId: user.wallet.id,
+    };
+
+    const queryOptions: Parameters<typeof prisma.commissionDue.findMany>[0] = {
+      where: mergedWhere,
+      skip,
+      take,
+    };
+
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
+    }
+
+    const [commissionsDue, totalCount] = await Promise.all([
+      prisma.commissionDue.findMany(queryOptions),
+      prisma.commissionDue.count({ where: mergedWhere }),
+    ]);
+
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: commissionsDue, meta };
   } catch (error) {
     console.error("Error fetching commissions due:", error);
     throw error;
@@ -113,7 +139,7 @@ const getCommissionDueByIdService = async (userId: string, dueId: string) => {
     if (commissionDue.wallet.userId !== userId) {
       throw new AppError(
         403,
-        "You are not authorized to view this commission due"
+        "You are not authorized to view this commission due",
       );
     }
     return commissionDue;
@@ -134,7 +160,7 @@ const payCommissionDueService = async (userId: string, dueId: string) => {
     if (commissionDue.wallet.userId !== userId) {
       throw new AppError(
         403,
-        "You are not authorized to pay this commission due"
+        "You are not authorized to pay this commission due",
       );
     }
     if (commissionDue.status === "PAID") {
@@ -143,7 +169,7 @@ const payCommissionDueService = async (userId: string, dueId: string) => {
     if (Number(commissionDue.wallet.balance) < Number(commissionDue.amount)) {
       throw new AppError(
         400,
-        "Insufficient wallet balance to pay commission due"
+        "Insufficient wallet balance to pay commission due",
       );
     }
     const payment = await prisma.payment.findFirst({
@@ -152,7 +178,7 @@ const payCommissionDueService = async (userId: string, dueId: string) => {
     if (!payment) {
       throw new AppError(
         400,
-        "Cannot pay commission due as the associated task payment is not completed"
+        "Cannot pay commission due as the associated task payment is not completed",
       );
     }
 

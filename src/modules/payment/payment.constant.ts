@@ -12,4 +12,19 @@ const paymentSelectFieldsOwner = {
   createdAt: true,
 };
 
-export { paymentSelectFieldsOwner };
+const paymentSelectFieldsApplicant = {
+  id: true,
+  transactionId: true,
+  taskId: true,
+  amount: true,
+  method: true,
+  status: true,
+  cashStatus: true,
+  paidAt: true,
+  failedAt: true,
+  refundedAt: true,
+  payeeConfirmedAt: true,
+  createdAt: true,
+};
+
+export { paymentSelectFieldsApplicant, paymentSelectFieldsOwner };

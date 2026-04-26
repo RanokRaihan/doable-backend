@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import { AppError, asyncHandler, sendResponse } from "../../utils";
+import { parseQuery } from "../../utils/query";
 import {
   getAllCommissionsDueService,
   getAllWalletTransactionsService,
@@ -63,7 +64,11 @@ const getAllCommissionsDueController: RequestHandler = asyncHandler(
     if (!user || !user.id) {
       throw new AppError(400, "You are not authorized to perform this action");
     }
-    const commissionsDue = await getAllCommissionsDueService(user.id);
+    const parsedQuery = parseQuery(req);
+    const commissionsDue = await getAllCommissionsDueService(
+      user.id,
+      parsedQuery,
+    );
     sendResponse(
       res,
       200,
