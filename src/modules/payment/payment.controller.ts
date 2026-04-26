@@ -1,6 +1,5 @@
 import { RequestHandler } from "express";
 import { AppError, asyncHandler, sendResponse } from "../../utils";
-import { dummyValidateOnlinePaymentService } from "./payment.dummy.service";
 import { IpnQuery } from "./payment.interface";
 import {
   cashPaymentConfirmService,
@@ -10,6 +9,7 @@ import {
   getAllPaymentReceivedService,
   getPaymentByIdService,
   onlinePaymentInitService,
+  validateOnlinePaymentService,
 } from "./payment.service";
 
 const cashPaymentInitController: RequestHandler = asyncHandler(
@@ -24,7 +24,7 @@ const cashPaymentInitController: RequestHandler = asyncHandler(
     }
     const payment = await cashPaymentInitService(user.id, taskId);
     sendResponse(res, 201, "Payment initiated successfully", payment);
-  }
+  },
 );
 const cashPaymentConfirmController: RequestHandler = asyncHandler(
   async (req, res) => {
@@ -38,7 +38,7 @@ const cashPaymentConfirmController: RequestHandler = asyncHandler(
     }
     const payment = await cashPaymentConfirmService(user.id, paymentId);
     sendResponse(res, 200, "Payment confirmed successfully", payment);
-  }
+  },
 );
 const cashPaymentDeclineController: RequestHandler = asyncHandler(
   async (req, res) => {
@@ -52,7 +52,7 @@ const cashPaymentDeclineController: RequestHandler = asyncHandler(
     }
     const payment = await cashPaymentDeclineService(user.id, paymentId);
     sendResponse(res, 200, "Payment declined successfully", payment);
-  }
+  },
 );
 const onlinePaymentInitController: RequestHandler = asyncHandler(
   async (req, res) => {
@@ -66,7 +66,7 @@ const onlinePaymentInitController: RequestHandler = asyncHandler(
     }
     const response = await onlinePaymentInitService(user.id, taskId);
     sendResponse(res, 201, response.message, response);
-  }
+  },
 );
 
 const validateOnlinePaymentController: RequestHandler = asyncHandler(
@@ -83,12 +83,12 @@ const validateOnlinePaymentController: RequestHandler = asyncHandler(
       ...query,
     };
 
-    // const response = await validateOnlinePaymentService(ipnQuery);
+    const response = await validateOnlinePaymentService(ipnQuery);
 
     // Using dummy service for now. Replace with actual service later.
-    const response = await dummyValidateOnlinePaymentService(ipnQuery);
+    // const response = await dummyValidateOnlinePaymentService(ipnQuery);
     sendResponse(res, 200, "Payment validated successfully", response);
-  }
+  },
 );
 
 // get all payment made by user
@@ -101,7 +101,7 @@ const getAllPaymentMadeController: RequestHandler = asyncHandler(
     const allPaymentMade = await getAllPaymentMadeService(user.id);
 
     sendResponse(res, 200, "Fetched all payments made by user", allPaymentMade);
-  }
+  },
 );
 
 // get all payment received by user
@@ -117,9 +117,9 @@ const getAllPaymentReceivedController: RequestHandler = asyncHandler(
       res,
       200,
       "Fetched all payments received by user",
-      allPaymentReceived
+      allPaymentReceived,
     );
-  }
+  },
 );
 
 const getPaymentByIdController: RequestHandler = asyncHandler(
@@ -136,7 +136,7 @@ const getPaymentByIdController: RequestHandler = asyncHandler(
 
     // Implementation to get payment by ID goes here
     sendResponse(res, 200, "Payment fetched successfully", payment);
-  }
+  },
 );
 
 export {

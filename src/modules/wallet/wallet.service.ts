@@ -11,6 +11,16 @@ const getMyWalletService = async (userId: string) => {
   try {
     const wallet = prisma.wallet.findFirst({
       where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
     });
     return wallet;
   } catch (error) {
