@@ -1,6 +1,7 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
 import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
+import { paymentSelectFieldsOwner } from "../payment/payment.constant";
 import {
   taskFilterableFields,
   TaskSearchFields,
@@ -127,7 +128,6 @@ const getMyPostedTaskService = async (userId: string, taskId: string) => {
       include: {
         images: true,
         applications: {
-          where: { status: { not: "WITHDRAWN" } },
           include: {
             applicant: {
               select: {
@@ -137,6 +137,11 @@ const getMyPostedTaskService = async (userId: string, taskId: string) => {
                 email: true,
               },
             },
+          },
+        },
+        payments: {
+          select: {
+            ...paymentSelectFieldsOwner,
           },
         },
       },
@@ -553,9 +558,7 @@ const requestTaskRevisionService = async (taskId: string, userId: string) => {
 };
 
 // Get recently posted tasks (latest 3, exclude current user's tasks)
-const getRecentlyPostedTasksService = async (
-  userId: string | undefined,
-) => {
+const getRecentlyPostedTasksService = async (userId: string | undefined) => {
   try {
     const tasks = await prisma.task.findMany({
       where: {
@@ -565,7 +568,7 @@ const getRecentlyPostedTasksService = async (
       },
       include: { images: true },
       omit: { ...taskSensitiveFieldsPublic },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 3,
     });
 
@@ -592,6 +595,5 @@ export {
   markTaskAsInProgressService,
   requestTaskRevisionService,
   updateTaskImagesService,
-  updateTaskService
+  updateTaskService,
 };
-
