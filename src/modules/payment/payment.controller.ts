@@ -1,4 +1,5 @@
 import { RequestHandler } from "express";
+import config from "../../config";
 import { AppError, asyncHandler, sendResponse } from "../../utils";
 import { IpnQuery } from "./payment.interface";
 import {
@@ -75,6 +76,7 @@ const validateOnlinePaymentController: RequestHandler = asyncHandler(
 
     // Map and cast req.query to IpnQuery type
     const ipnQuery: IpnQuery = {
+      tran_id: query.tran_id as string,
       amount: Number(query.amount),
       bank_tran_id: query.bank_tran_id as string,
       status: query.status as string,
@@ -139,6 +141,23 @@ const getPaymentByIdController: RequestHandler = asyncHandler(
   },
 );
 
+const paymentSuccessController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const data: IpnQuery = req.body;
+    if (!data || !data.tran_id || !data.val_id) {
+      res.redirect(config.sslcommerz.failUrlFrontend);
+    }
+    const sessionToken = req.query?.sessionToken;
+    const finalPayment = await validateOnlinePaymentService(data);
+    if (!finalPayment || finalPayment.status !== "COMPLETED") {
+      return res.redirect(config.sslcommerz.failUrlFrontend);
+    }
+    res.redirect(
+      `${config.sslcommerz.successUrlFrontend}?sessionToken=${sessionToken}`,
+    );
+  },
+);
+
 export {
   cashPaymentConfirmController,
   cashPaymentDeclineController,
@@ -147,5 +166,6 @@ export {
   getAllPaymentReceivedController,
   getPaymentByIdController,
   onlinePaymentInitController,
+  paymentSuccessController,
   validateOnlinePaymentController,
 };

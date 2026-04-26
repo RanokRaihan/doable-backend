@@ -27,7 +27,7 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
     if (task.postedById !== userId) {
       throw new AppError(
         403,
-        "You are not authorized to make payment for this task!"
+        "You are not authorized to make payment for this task!",
       );
     }
 
@@ -46,7 +46,7 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Cash payment already initiated for this task!",
         "DUPLICATE_PAYMENT",
-        "payment"
+        "payment",
       );
     }
 
@@ -55,7 +55,7 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
 
     // Block if online payment is COMPLETED
     const completedOnlinePayment = onlinePayments.find(
-      (p) => p.status === "COMPLETED"
+      (p) => p.status === "COMPLETED",
     );
 
     if (completedOnlinePayment) {
@@ -63,13 +63,13 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Online payment already completed for this task!",
         "DUPLICATE_PAYMENT",
-        "payment"
+        "payment",
       );
     }
 
     // Block if online payment is PENDING and not expired
     const pendingOnlinePayment = onlinePayments.find(
-      (p) => p.status === "PENDING"
+      (p) => p.status === "PENDING",
     );
 
     if (pendingOnlinePayment) {
@@ -81,7 +81,7 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
           400,
           "You have a pending online payment. Please complete or wait for it to expire before using cash payment.",
           "PENDING_ONLINE_PAYMENT",
-          "payment"
+          "payment",
         );
       }
 
@@ -329,7 +329,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         403,
         "You are not authorized to make payment for this task!",
         "FORBIDDEN",
-        "payment"
+        "payment",
       );
     }
 
@@ -338,7 +338,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Task is not approved for payment processing!",
         "INVALID_TASK_STATUS",
-        "task"
+        "task",
       );
     }
 
@@ -347,7 +347,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         400,
         "No approved application found for this task!",
         "NO_APPROVED_APPLICATION",
-        "task"
+        "task",
       );
     }
     // 2.1 Fetch existing cash payments for the task
@@ -358,7 +358,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Cash payment already initiated for this task!",
         "DUPLICATE_PAYMENT",
-        "payment"
+        "payment",
       );
     }
 
@@ -367,7 +367,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
 
     // Handle existing COMPLETED payment
     const completedPayment = onlinePayments.find(
-      (p) => p.status === "COMPLETED"
+      (p) => p.status === "COMPLETED",
     );
 
     if (completedPayment) {
@@ -375,7 +375,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Payment already completed for this task!",
         "DUPLICATE_PAYMENT",
-        "payment"
+        "payment",
       );
     }
 
@@ -510,7 +510,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         500,
         "Failed to initialize payment gateway",
         "GATEWAY_INIT_FAILED",
-        "payment"
+        "payment",
       );
     }
 
@@ -551,7 +551,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
       500,
       "Failed to initiate online payment",
       "PAYMENT_INIT_FAILED",
-      "payment"
+      "payment",
     );
   }
 };
@@ -578,7 +578,7 @@ const validateOnlinePaymentService = async (payload: IpnQuery) => {
         400,
         "Payment validation failed",
         "PAYMENT_VALIDATION_FAILED",
-        "ipn"
+        "ipn",
       );
     }
     const paymentRecord = await prisma.payment.findFirst({
@@ -673,6 +673,7 @@ const validateOnlinePaymentService = async (payload: IpnQuery) => {
           transactionId: true,
           amount: true,
           method: true,
+          sessionToken: true,
         },
       });
       await tx.task.update({
