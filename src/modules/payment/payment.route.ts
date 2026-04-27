@@ -8,7 +8,10 @@ import {
   getAllPaymentMadeController,
   getAllPaymentReceivedController,
   getPaymentByIdController,
+  getPaymentBySessionTokenController,
   onlinePaymentInitController,
+  paymentCancelController,
+  paymentFailController,
   paymentSuccessController,
   validateOnlinePaymentController,
 } from "./payment.controller";
@@ -22,6 +25,8 @@ router.post(
   cashPaymentInitController,
 );
 router.post("/success", paymentSuccessController);
+router.post("/fail", paymentFailController);
+router.post("/cancel", paymentCancelController);
 
 router.patch(
   "/cash/confirm/:paymentId",
@@ -56,6 +61,12 @@ router.get(
   auth,
   authorize(["USER"]),
   getAllPaymentReceivedController,
+);
+router.get(
+  "/session/:sessionToken",
+  auth,
+  authorize(["USER"]),
+  getPaymentBySessionTokenController,
 );
 router.get("/:id", auth, authorize(["USER"]), getPaymentByIdController);
 

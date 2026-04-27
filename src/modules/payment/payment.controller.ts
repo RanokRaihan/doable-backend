@@ -9,7 +9,10 @@ import {
   getAllPaymentMadeService,
   getAllPaymentReceivedService,
   getPaymentByIdService,
+  getPaymentBySessionTokenService,
   onlinePaymentInitService,
+  paymentCancelService,
+  paymentFailService,
   validateOnlinePaymentService,
 } from "./payment.service";
 
@@ -158,6 +161,48 @@ const paymentSuccessController: RequestHandler = asyncHandler(
   },
 );
 
+const paymentFailController: RequestHandler = asyncHandler(async (req, res) => {
+  const data: IpnQuery = req.body;
+  const sessionToken = req.query?.sessionToken;
+  if (data?.tran_id) {
+    await paymentFailService(data);
+  }
+  res.redirect(
+    `${config.sslcommerz.failUrlFrontend}?sessionToken=${sessionToken}`,
+  );
+});
+
+const paymentCancelController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const data: IpnQuery = req.body;
+    const sessionToken = req.query?.sessionToken;
+    if (data?.tran_id) {
+      await paymentCancelService(data);
+    }
+    res.redirect(
+      `${config.sslcommerz.cancelUrlFrontend}?sessionToken=${sessionToken}`,
+    );
+  },
+);
+
+const getPaymentBySessionTokenController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const { sessionToken } = req.params;
+    const user = req.user;
+    if (!user || !user.id) {
+      throw new AppError(401, "Unauthorized");
+    }
+    if (!sessionToken) {
+      throw new AppError(400, "Session token is required");
+    }
+    const payment = await getPaymentBySessionTokenService(
+      sessionToken,
+      user.id,
+    );
+    sendResponse(res, 200, "Payment fetched successfully", payment);
+  },
+);
+
 export {
   cashPaymentConfirmController,
   cashPaymentDeclineController,
@@ -165,7 +210,10 @@ export {
   getAllPaymentMadeController,
   getAllPaymentReceivedController,
   getPaymentByIdController,
+  getPaymentBySessionTokenController,
   onlinePaymentInitController,
+  paymentCancelController,
+  paymentFailController,
   paymentSuccessController,
   validateOnlinePaymentController,
 };

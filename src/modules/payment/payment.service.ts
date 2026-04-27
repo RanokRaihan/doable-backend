@@ -818,6 +818,98 @@ const getPaymentByIdService = async (paymentId: string, userId: string) => {
     throw error;
   }
 };
+const getPaymentBySessionTokenService = async (
+  sessionToken: string,
+  userId: string,
+) => {
+  const payment = await prisma.payment.findFirst({
+    where: {
+      sessionToken,
+      payerId: userId,
+    },
+    select: {
+      id: true,
+      transactionId: true,
+      amount: true,
+      method: true,
+      status: true,
+      sessionToken: true,
+      sessionExpiresAt: true,
+      paidAt: true,
+      failedAt: true,
+      failureReason: true,
+      createdAt: true,
+      task: {
+        select: {
+          id: true,
+          title: true,
+          category: true,
+          location: true,
+          status: true,
+        },
+      },
+      payer: { select: { id: true, name: true, email: true } },
+      payee: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  if (!payment) {
+    throw new AppError(404, "Payment not found", "NOT_FOUND", "payment");
+  }
+
+  return payment;
+};
+
+const paymentFailService = async (data: IpnQuery) => {
+  const payment = await prisma.payment.findFirst({
+    where: { transactionId: data.tran_id },
+    select: { id: true, status: true },
+  });
+
+  if (!payment) {
+    throw new AppError(404, "Payment record not found", "NOT_FOUND", "payment");
+  }
+
+  if (payment.status === "COMPLETED") {
+    return payment;
+  }
+
+  return prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: "FAILED",
+      failedAt: new Date(),
+      failureReason: data.error ?? "Payment failed",
+      gatewayResponse: data as object,
+    },
+    select: { id: true, transactionId: true, status: true, failedAt: true },
+  });
+};
+
+const paymentCancelService = async (data: IpnQuery) => {
+  const payment = await prisma.payment.findFirst({
+    where: { transactionId: data.tran_id },
+    select: { id: true, status: true },
+  });
+
+  if (!payment) {
+    throw new AppError(404, "Payment record not found", "NOT_FOUND", "payment");
+  }
+
+  if (payment.status === "COMPLETED") {
+    return payment;
+  }
+
+  return prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: "CANCELLED",
+      gatewayResponse: data as object,
+    },
+    select: { id: true, transactionId: true, status: true },
+  });
+};
+
 export {
   cashPaymentConfirmService,
   cashPaymentDeclineService,
@@ -825,6 +917,9 @@ export {
   getAllPaymentMadeService,
   getAllPaymentReceivedService,
   getPaymentByIdService,
+  getPaymentBySessionTokenService,
   onlinePaymentInitService,
+  paymentCancelService,
+  paymentFailService,
   validateOnlinePaymentService,
 };
