@@ -2,4 +2,13 @@ const commissionDueSortableFields = ["amount", "createdAt", "updatedAt"];
 
 const commissionDueFilterableFields = ["status"];
 
-export { commissionDueSortableFields, commissionDueFilterableFields };
+const walletTransactionSortableFields = ["amount", "createdAt"];
+
+const walletTransactionFilterableFields = ["type", "category", "status"];
+
+export {
+  commissionDueSortableFields,
+  commissionDueFilterableFields,
+  walletTransactionSortableFields,
+  walletTransactionFilterableFields,
+};

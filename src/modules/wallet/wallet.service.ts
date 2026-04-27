@@ -5,6 +5,8 @@ import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
 import {
   commissionDueFilterableFields,
   commissionDueSortableFields,
+  walletTransactionFilterableFields,
+  walletTransactionSortableFields,
 } from "./wallet.constant";
 
 const getMyWalletService = async (userId: string) => {
@@ -28,7 +30,10 @@ const getMyWalletService = async (userId: string) => {
     throw error;
   }
 };
-const getAllWalletTransactionsService = async (userId: string) => {
+const getAllWalletTransactionsService = async (
+  userId: string,
+  parsedQuery: ParsedQuery,
+) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId, isDeleted: false },
@@ -37,10 +42,29 @@ const getAllWalletTransactionsService = async (userId: string) => {
     if (!user || !user.wallet?.id) {
       throw new AppError(404, "User or wallet not found");
     }
-    const transactions = prisma.walletTransaction.findMany({
-      where: { walletId: user.wallet?.id },
+
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      sortFields: walletTransactionSortableFields,
+      filterFields: walletTransactionFilterableFields,
     });
-    return transactions;
+
+    const mergedWhere = { ...where, walletId: user.wallet.id };
+
+    const queryOptions: Parameters<
+      typeof prisma.walletTransaction.findMany
+    >[0] = { where: mergedWhere, skip, take };
+
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
+    }
+
+    const [transactions, totalCount] = await Promise.all([
+      prisma.walletTransaction.findMany(queryOptions),
+      prisma.walletTransaction.count({ where: mergedWhere }),
+    ]);
+
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: transactions, meta };
   } catch (error) {
     console.error("Error fetching wallet transactions:", error);
     throw error;
