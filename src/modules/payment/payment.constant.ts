@@ -1,3 +1,7 @@
+const paymentSortableFields = ["amount", "createdAt", "paidAt"];
+
+const paymentFilterableFields = ["method", "status"];
+
 const paymentSelectFieldsOwner = {
   id: true,
   transactionId: true,
@@ -27,4 +31,9 @@ const paymentSelectFieldsApplicant = {
   createdAt: true,
 };
 
-export { paymentSelectFieldsApplicant, paymentSelectFieldsOwner };
+export {
+  paymentFilterableFields,
+  paymentSelectFieldsApplicant,
+  paymentSelectFieldsOwner,
+  paymentSortableFields,
+};

@@ -5,8 +5,13 @@ import config from "../../config";
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
 import { createTnxId } from "../../utils/createTnxId";
+import {
+  paymentFilterableFields,
+  paymentSortableFields,
+} from "./payment.constant";
 import { IpnQuery, PaymentPayload } from "./payment.interface";
 import { getDefaultDescription } from "./payment.utils";
+import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
 const commissionRate = config.commissionRate;
 
 const cashPaymentInitService = async (userId: string, taskId: string) => {
@@ -691,11 +696,22 @@ const validateOnlinePaymentService = async (payload: IpnQuery) => {
 };
 
 // get all payment made by user
-const getAllPaymentMadeService = async (userId: string) => {
+const getAllPaymentMadeService = async (
+  userId: string,
+  parsedQuery: ParsedQuery,
+) => {
   try {
-    const paymentsMade = await prisma.payment.findMany({
-      where: { payerId: userId },
-      orderBy: { createdAt: "desc" },
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      sortFields: paymentSortableFields,
+      filterFields: paymentFilterableFields,
+    });
+
+    const mergedWhere = { ...where, payerId: userId };
+
+    const queryOptions: Parameters<typeof prisma.payment.findMany>[0] = {
+      where: mergedWhere,
+      skip,
+      take,
       select: {
         id: true,
         transactionId: true,
@@ -705,20 +721,22 @@ const getAllPaymentMadeService = async (userId: string) => {
         cashStatus: true,
         paidAt: true,
         createdAt: true,
-        payee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        payee: { select: { id: true, name: true, email: true } },
         taskId: true,
       },
-    });
-    if (!paymentsMade || paymentsMade.length === 0) {
-      throw new AppError(404, "No payments made found");
+    };
+
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
     }
-    return paymentsMade;
+
+    const [paymentsMade, totalCount] = await Promise.all([
+      prisma.payment.findMany(queryOptions),
+      prisma.payment.count({ where: mergedWhere }),
+    ]);
+
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: paymentsMade, meta };
   } catch (error) {
     console.error("Error in getAllPaymentMadeService:", error);
     throw error;
@@ -726,11 +744,22 @@ const getAllPaymentMadeService = async (userId: string) => {
 };
 
 // get all payment received by user
-const getAllPaymentReceivedService = async (userId: string) => {
+const getAllPaymentReceivedService = async (
+  userId: string,
+  parsedQuery: ParsedQuery,
+) => {
   try {
-    const paymentsReceived = await prisma.payment.findMany({
-      where: { payeeId: userId, status: "COMPLETED" },
-      orderBy: { createdAt: "desc" },
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      sortFields: paymentSortableFields,
+      filterFields: paymentFilterableFields,
+    });
+
+    const mergedWhere = { ...where, payeeId: userId };
+
+    const queryOptions: Parameters<typeof prisma.payment.findMany>[0] = {
+      where: mergedWhere,
+      skip,
+      take,
       select: {
         id: true,
         transactionId: true,
@@ -739,23 +768,25 @@ const getAllPaymentReceivedService = async (userId: string) => {
         status: true,
         cashStatus: true,
         paidAt: true,
-        payer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        payer: { select: { id: true, name: true, email: true } },
         commissionAmount: true,
         commissionDeducted: true,
         createdAt: true,
         taskId: true,
       },
-    });
-    if (!paymentsReceived || paymentsReceived.length === 0) {
-      throw new AppError(404, "No received payments found");
+    };
+
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
     }
-    return paymentsReceived;
+
+    const [paymentsReceived, totalCount] = await Promise.all([
+      prisma.payment.findMany(queryOptions),
+      prisma.payment.count({ where: mergedWhere }),
+    ]);
+
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: paymentsReceived, meta };
   } catch (error) {
     console.error("Error in getAllPaymentReceivedService:", error);
     throw error;

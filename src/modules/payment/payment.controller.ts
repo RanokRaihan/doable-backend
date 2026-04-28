@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import config from "../../config";
 import { AppError, asyncHandler, sendResponse } from "../../utils";
+import { parseQuery } from "../../utils/query";
 import { IpnQuery } from "./payment.interface";
 import {
   cashPaymentConfirmService,
@@ -103,8 +104,8 @@ const getAllPaymentMadeController: RequestHandler = asyncHandler(
     if (!user || !user.id) {
       throw new AppError(400, "Unauthorized");
     }
-    const allPaymentMade = await getAllPaymentMadeService(user.id);
-
+    const parsedQuery = parseQuery(req);
+    const allPaymentMade = await getAllPaymentMadeService(user.id, parsedQuery);
     sendResponse(res, 200, "Fetched all payments made by user", allPaymentMade);
   },
 );
@@ -116,8 +117,11 @@ const getAllPaymentReceivedController: RequestHandler = asyncHandler(
     if (!user || !user.id) {
       throw new AppError(400, "Unauthorized");
     }
-    const allPaymentReceived = await getAllPaymentReceivedService(user.id);
-
+    const parsedQuery = parseQuery(req);
+    const allPaymentReceived = await getAllPaymentReceivedService(
+      user.id,
+      parsedQuery,
+    );
     sendResponse(
       res,
       200,
