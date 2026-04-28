@@ -852,6 +852,7 @@ Full public profile with stats, reviews, and recent tasks. No auth required.
 **Params:** `id` — user CUID (min length 1).
 
 **Errors:**
+
 - `400` — validation error (empty id)
 - `404 NOT_FOUND` — user not found or soft-deleted
 
@@ -868,17 +869,17 @@ Full public profile with stats, reviews, and recent tasks. No auth required.
 
   stats: {
     asPoster: {
-      tasksPosted: number;        // non-deleted tasks, excluding DRAFT
+      tasksPosted: number; // non-deleted tasks, excluding DRAFT
       averageRating: number | null; // avg rating received as task poster; null if no reviews
       reviewCount: number;
-    };
+    }
     asDoer: {
-      tasksCompleted: number;     // approved applications where task.status = COMPLETED
+      tasksCompleted: number; // approved applications where task.status = COMPLETED
       completionRate: number | null; // tasksCompleted / totalApprovedApplications (0–1, 2dp); null if no approved apps
       averageRating: number | null; // avg rating received as task doer; null if no reviews
       reviewCount: number;
-    };
-  };
+    }
+  }
 
   // Up to 10 public reviews, newest first
   reviews: Array<{
@@ -909,20 +910,23 @@ Full public profile with stats, reviews, and recent tasks. No auth required.
 
 ### 6.3 Task — `/api/v1/task`
 
-| Method | Path                          | Auth | Roles | Description                             |
-| ------ | ----------------------------- | ---- | ----- | --------------------------------------- |
-| GET    | `/all-task`                   | —    | —     | List tasks with filters/pagination      |
-| GET    | `/:id`                        | —    | —     | Get task by ID                          |
-| POST   | `/post-task`                  | JWT  | USER  | Create task                             |
-| PATCH  | `/update-task/:id`            | JWT  | USER  | Update task (owner only)                |
-| DELETE | `/delete-task/:id`            | JWT  | USER  | Soft-delete task (owner only)           |
-| POST   | `/:taskId/image`              | JWT  | USER  | Add images to task (max 5, owner only)  |
-| PATCH  | `/:taskId/image`              | JWT  | USER  | Update task images (owner only)         |
-| DELETE | `/:taskId/image/:imageId`     | JWT  | USER  | Delete a single task image (owner only) |
-| PATCH  | `/:taskId/mark-in-progress`   | JWT  | USER  | Tasker starts work                      |
-| PATCH  | `/:taskId/mark-completed`     | JWT  | USER  | Tasker marks done                       |
-| PATCH  | `/:taskId/approve-completion` | JWT  | USER  | Poster approves completion              |
-| PATCH  | `/:taskId/request-revision`   | JWT  | USER  | Poster requests revision                |
+| Method | Path                          | Auth | Roles | Description                              |
+| ------ | ----------------------------- | ---- | ----- | ---------------------------------------- |
+| GET    | `/all-task`                   | —    | —     | List tasks with filters/pagination       |
+| GET    | `/recently-posted`            | —    | —     | Get recently posted tasks                |
+| GET    | `/my-posted-tasks`            | JWT  | USER  | Get all tasks posted by current user     |
+| GET    | `/my-posted-task/:taskId`     | JWT  | USER  | Get specific task posted by current user |
+| GET    | `/:id`                        | —    | —     | Get task by ID                           |
+| POST   | `/post-task`                  | JWT  | USER  | Create task                              |
+| PATCH  | `/update-task/:id`            | JWT  | USER  | Update task (owner only)                 |
+| DELETE | `/delete-task/:id`            | JWT  | USER  | Soft-delete task (owner only)            |
+| POST   | `/:taskId/image`              | JWT  | USER  | Add images to task (max 5, owner only)   |
+| PATCH  | `/:taskId/image`              | JWT  | USER  | Update task images (owner only)          |
+| DELETE | `/:taskId/image/:imageId`     | JWT  | USER  | Delete a single task image (owner only)  |
+| PATCH  | `/:taskId/mark-in-progress`   | JWT  | USER  | Tasker starts work                       |
+| PATCH  | `/:taskId/mark-completed`     | JWT  | USER  | Tasker marks done                        |
+| PATCH  | `/:taskId/approve-completion` | JWT  | USER  | Poster approves completion               |
+| PATCH  | `/:taskId/request-revision`   | JWT  | USER  | Poster requests revision                 |
 
 ---
 
@@ -964,6 +968,39 @@ Response `data`: Task object (public view) including:
 
 - `images: Image[]`
 - `postedBy: { id: string; name: string; image: string | null }`
+
+---
+
+#### `GET /recently-posted`
+
+Get recently posted tasks. No authentication required.
+
+Response `data`: Array of recently posted task objects (public view).
+
+---
+
+#### `GET /my-posted-tasks`
+
+Get all tasks posted by the current authenticated user.
+
+Query params: standard pagination (see §5).
+
+Response: paginated. `data` is array of task objects (owner view).
+
+---
+
+#### `GET /my-posted-task/:taskId`
+
+Get a specific task posted by the current authenticated user.
+
+**Params:** `taskId` — ID of the task.
+
+Response `data`: Task object (owner view) including applications and other detailed information.
+
+**Errors:**
+
+- `403` — Unauthorized (not task owner)
+- `404` — Task not found
 
 ---
 
@@ -1559,7 +1596,7 @@ Response `data`: Updated `CommissionDue` record.
 
 ---
 
-## 7. Shared Entity Types
+## 8. Shared Entity Types
 
 ### `TaskPublic` (returned by `GET /task/all-task`, `GET /task/:id`)
 
@@ -1815,6 +1852,42 @@ const publicRoutes = [
   "POST /api/v1/payment/online/ipn-validate/",
 ];
 ```
+
+---
+
+## 7. Demo — `/api/v1/demo`
+
+Demo routes for testing and showcasing response patterns. These are development-only routes.
+
+| Method | Path                   | Auth | Description                       |
+| ------ | ---------------------- | ---- | --------------------------------- |
+| GET    | `/success`             | —    | Basic success response            |
+| POST   | `/created`             | —    | Resource creation response        |
+| GET    | `/paginated`           | —    | Paginated response                |
+| GET    | `/not-found`           | —    | 404 error response                |
+| POST   | `/validation-error`    | —    | Validation error response         |
+| GET    | `/unauthorized`        | —    | 401 unauthorized response         |
+| GET    | `/forbidden`           | —    | 403 forbidden response            |
+| GET    | `/conflict`            | —    | 409 conflict response             |
+| GET    | `/server-error`        | —    | 500 server error response         |
+| GET    | `/custom-error`        | —    | Custom error response             |
+| DELETE | `/no-content`          | —    | 204 no content response           |
+| GET    | `/rate-limit`          | —    | 429 rate limit response           |
+| GET    | `/service-unavailable` | —    | 503 service unavailable response  |
+| POST   | `/unprocessable`       | —    | 422 unprocessable entity response |
+
+---
+
+#### Demo endpoint details
+
+All demo endpoints demonstrate various response patterns using the `ResponseHandler` utility:
+
+- **Success responses**: Show proper success envelope with data
+- **Error responses**: Demonstrate different HTTP status codes and error types
+- **Paginated responses**: Show pagination metadata structure
+- **Various status codes**: Cover the full range of HTTP responses
+
+These endpoints are for development and testing purposes only and should be removed before production deployment.
 
 ---
 

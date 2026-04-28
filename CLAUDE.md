@@ -1,25 +1,31 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**Get It Done** is a Node.js/TypeScript REST API for a task marketplace — users post tasks, others apply, and the platform handles payment and wallet/commission settlement. Stack: Express 5, Prisma 6 (PostgreSQL), Zod 4, JWT (access + refresh tokens), bcryptjs, Nodemailer, SSLCommerz. No test runner is configured. See `AGENTS.md` for the module map and file locations. See `api-contract.md` for all endpoint contracts, shared types, and auth patterns.
+
+---
 
 ## Development Commands
 
 ```bash
-npm run dev              # Start dev server with hot reload (ts-node-dev)
-npm run build            # Compile TypeScript to dist/
-npm run start            # Run compiled production server
-npx tsc --noEmit         # Type-check without emitting
-
-npx prisma migrate dev --name <migration_name>   # Create and apply a migration
-npx prisma generate      # Regenerate Prisma client after schema changes
-npx prisma studio        # Open Prisma database GUI
+npm run dev                                   # ts-node-dev --respawn --transpile-only src/server.ts
+npm run build                                 # tsc
+npm run start                                 # node dist/server.js
+npx tsc --noEmit                              # type-check without emitting
+npx prisma migrate dev --name <name>          # create and apply a migration
+npx prisma generate                           # regenerate Prisma client after schema change
+npx prisma studio                             # open database GUI
 ```
 
-No test runner is configured — `npm test` exits with an error.
+---
 
-## Architecture Overview
+## Coding Conventions
 
-**Get It Done** is a task marketplace REST API: users post tasks, others apply, and the platform handles payments and wallet/commission settlement.
+### File and folder naming
+
+- All source files use `camelCase.ts`
+- Module files follow `<module>.<type>.ts` — e.g., `task.service.ts`, `task.route.ts`
+- Modules live under `src/modules/<name>/` — each has exactly six files: `.route.ts`, `.controller.ts`, `.service.ts`, `.validation.ts` (or `.validator.ts`), `.interface.ts`, `.constant.ts`
+- Shared utilities in `src/utils/`; global interfaces in `src/interface/`; Prisma singleton in `src/config/database.ts`
 
 ### Request lifecycle
 
@@ -27,78 +33,100 @@ No test runner is configured — `npm test` exits with an error.
 Route → auth() → authorize([roles]) → validateRequest(schema) → controller → service → Prisma
 ```
 
-- **`src/app.ts`** — Express app setup: CORS, JSON middleware, route mounting, error handlers.
-- **`src/routes/index.ts`** — Mounts all module routers under `/api/v1`.
-- **`src/config/index.ts`** — Single typed config object; all env vars accessed here, never via `process.env` directly.
-- **`src/config/database.ts`** — Singleton `prisma` client exported from here; import it in services.
+### Controllers
 
-### Module structure
+Thin — extract input, call one service function, return via `ResponseHandler`:
 
-Every module under `src/modules/<name>/` follows this exact layout:
-- `<name>.route.ts` — Router with middleware chain
-- `<name>.controller.ts` — Thin: extract input → call service → `ResponseHandler`
-- `<name>.service.ts` — All business logic and Prisma queries
-- `<name>.validation.ts` — Zod schemas (nested `body`/`params`/`query` keys)
-- `<name>.interface.ts` — TypeScript types for the module
-- `<name>.constant.ts` — Sortable fields, omit sets, etc.
-
-### Key utilities (`src/utils/`)
-
-| Utility | Purpose |
-|---|---|
-| `asyncHandler(fn)` | Wraps async controllers, forwards errors to `globalErrorHandler` |
-| `AppError(status, msg)` | Throw for operational errors |
-| `ResponseHandler.ok/created/unauthorized/notFound` | Standardized response shapes |
-| `parseQuery(req)` + `buildPrismaQuery()` + `buildMeta()` | Pagination, search, sort, filter |
-| `createToken(payload, secret, expiry)` | JWT sign utility |
-| `createTnxId("TNX"/"WTNX")` | Transaction ID generator |
-
-### Authentication
-
-- `auth()` middleware verifies `Authorization: Bearer <token>`, attaches `req.user` (typed in `src/types/global.d.ts`).
-- JWT payload shape: `{ userId, email, name, role: UserRole, profileStatus }`.
-- Refresh token is stored as an httpOnly cookie.
-
-### Error handling
-
-- Throw `new AppError(statusCode, message)` in services for operational errors.
-- `globalErrorHandler` in `src/middlewares/errorHandler.ts` handles `ZodError`, `PrismaClientKnownRequestError`, and `AppError`.
-- Error type strings: `VALIDATION_ERROR`, `AUTHENTICATION_ERROR`, `AUTHORIZATION_ERROR`, `NOT_FOUND`, `CONFLICT`.
-
-### Database patterns
-
-- Always filter `isDeleted: false` for `User` and `Task` queries (both use soft delete).
-- Omit sensitive fields via Prisma `omit` option using constants from `<module>.constant.ts`.
-- `agreedCompensation` on `Task` is set when an application is approved (copied from `proposedCompensation`).
-- Commission rate comes from config (`COMMISSION_RATE`), stored per-payment in the `commissionRate` field.
-
-### Task status machine
-
+```ts
+const myController: RequestHandler = asyncHandler(async (req, res) => {
+  const result = await myService(req.body, req.user!.id);
+  return ResponseHandler.ok(res, "Message", result, { path: req.path });
+});
 ```
-DRAFT → OPEN → ASSIGNED → IN_PROGRESS → PENDING_REVIEW → PAYMENT_PROCESSING → COMPLETED
-                                                       ↘ (revision) → IN_PROGRESS
-                                                                              ↘ PAYMENT_FAILED
-```
+
+Never put Prisma queries or business logic in controllers.
+
+### Services
+
+All business logic and Prisma queries live here. Import `prisma` from `src/config/database.ts`. Throw `new AppError(statusCode, message)` for operational errors.
 
 ### Validation schemas
 
-Zod schemas use nested structure — always wrap fields under `body`, `params`, or `query`:
+Always nest Zod fields under `body`, `params`, or `query`. Use `.strict()` on body schemas:
 
 ```ts
-const schema = z.object({
-  body: z.object({ ... }).strict(),
+z.object({
+  body: z.object({ field: z.string() }).strict(),
   params: z.object({ id: z.string() }).optional(),
 });
 ```
 
-## TypeScript Strictness
+### Error handling
 
-`strict: true` plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`. Use Prisma-generated types for model shapes — do not redefine them manually.
+- Throw `new AppError(statusCode, message)` in services — never in controllers
+- Controllers are wrapped in `asyncHandler()` — errors propagate to `globalErrorHandler`
+- `globalErrorHandler` handles `ZodError`, `PrismaClientKnownRequestError`, and `AppError`
+- Do not add `try/catch` in controllers
 
-## Important Notes
+### Response utilities
 
-- CORS currently hardcoded to `http://localhost:3000` in `app.ts`; `FRONTEND_URL` env var should override this for production.
-- `GET /api/v1/user/` (all users) is a temporary route — do not expand it.
-- `src/modules/payment/payment.dummy.service.ts` is a placeholder; do not use in production logic.
-- `docs/` folder contains design notes: `auth-optimization.md`, `endpoint-list.md`, `schema-improvements.md`, `response-utility.md`.
-- See `AGENTS.md` for full route tables, database schema details, and payment flows.
+Use `ResponseHandler` static methods — never the legacy `sendResponse()`:
+
+```ts
+ResponseHandler.ok(res, message, data, options); // 200
+ResponseHandler.created(res, message, data, options); // 201
+ResponseHandler.unauthorized(res, message, path); // 401
+ResponseHandler.notFound(res, message, path); // 404
+```
+
+### TypeScript
+
+- Compiler flags: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`
+- Use Prisma-generated types for model shapes — do not redefine them manually
+- All env vars via `config` from `src/config/index.ts` — never access `process.env` directly
+- Module-specific types in `<module>.interface.ts` — never in controllers
+
+### Database
+
+- Always filter `isDeleted: false` for `User` and `Task` queries (both use soft delete)
+- Omit sensitive fields at query time via Prisma `omit` using constants from `<module>.constant.ts`
+- Two omit sets for tasks: `taskSensitiveFieldsPublic` (strips `isDeleted`, `deletedAt`, `deletedBy`, `approvedApplicationId`, `agreedCompensation`) and `taskSensitiveFieldsOwner` (strips `isDeleted`, `deletedAt`, `deletedBy` only)
+
+### Pagination
+
+Use `parseQuery(req, options?)` + `buildPrismaQuery()` + `buildMeta()` from `src/utils/query.ts` for all list endpoints.
+
+### Transaction IDs
+
+`createTnxId("TNX")` for payment transactions; `createTnxId("WTNX")` for wallet transactions.
+
+---
+
+## Do NOT
+
+- Do not traverse the full codebase speculatively — check `AGENTS.md` for module/file locations first
+- Do not re-read files already described in `AGENTS.md` unless you need the exact implementation detail
+- Do not assume module file paths — verify against the module map in `AGENTS.md`
+- Do not change any endpoint shape, auth pattern, or response format without updating `api-contract.md` first
+- Do not add `try/catch` in controllers — `asyncHandler` propagates errors
+- Do not put Prisma queries in controllers
+- Do not access `process.env` directly — use `config` from `src/config/index.ts`
+- Do not redefine Prisma model types manually
+- Do not use `sendResponse()` (legacy) — use `ResponseHandler` static methods
+
+---
+
+## Mandatory Post-Task Protocol
+
+After any task that creates or deletes a file, renames something, or makes an architectural decision, you MUST update `AGENTS.md` before the task is considered done:
+
+1. Add or remove the file from the module/service map with a one-line purpose description
+2. Append any architectural decision to `## Architectural Decisions`
+3. Add a one-line entry to `## Recent Changes` at the top of `AGENTS.md` (format: `YYYY-MM-DD — what changed`)
+
+Additionally, if the task touches any of the following, update `api-contract.md` immediately:
+
+- Any endpoint (added, removed, renamed, param or response shape changed)
+- Any shared type or enum
+- Auth flow or token behavior
+- Error response format
