@@ -52,9 +52,25 @@ const loginUserService = async (loginData: UserLoginInput) => {
 
     // Check if account is locked
     if (userWithPassword.lockedAt) {
+      const lockTime = new Date(userWithPassword.lockedAt).getTime();
+      const currentTime = new Date().getTime();
+      const lockDurationMs = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+      if (currentTime - lockTime < lockDurationMs) {
+        throw new AppError(
+          423,
+          "Too many failed login attempts. Please try again later or reset your password.",
+          "ACCOUNT_LOCKED",
+        );
+      }
+
+      // Lock period expired, unlock the account
+      await resetFailedLoginCount(userWithPassword.id);
+    }
+    if (userWithPassword.lockedAt) {
       throw new AppError(
         423,
-        "Account is locked. Please contact support.",
+        "Too many failed login attempts. Please try again later or reset your password.",
         "ACCOUNT_LOCKED",
       );
     }
@@ -249,8 +265,7 @@ const incrementFailedLoginCount = async (
       data: {
         failedLoginCount: failedLoginCount + 1,
         // Lock account after 5 failed attempts
-        //for testting set to 40, change to 5 later
-        ...(failedLoginCount >= 40 && {
+        ...(failedLoginCount >= 5 && {
           lockedAt: new Date(),
         }),
       },
@@ -289,27 +304,89 @@ const forgotPasswordService = async (email: string) => {
       },
     });
 
+    // The unified response returned to the controller to prevent email enumeration
+    const genericResponse =
+      "If an account with this email exists, a password reset link has been sent.";
+
+    // Shared email styles for a clean, responsive, and modern UI
+    const emailStyle = `
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 40px 0; }
+      .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+      .header { background-color: #09090b; padding: 24px; text-align: center; }
+      .header h1 { margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.025em; }
+      .content { padding: 32px; color: #3f3f46; line-height: 1.6; font-size: 16px; }
+      .button-container { text-align: center; margin: 32px 0; }
+      .button { background-color: #09090b; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block; transition: background-color 0.2s; }
+      .footer { padding: 24px; text-align: center; font-size: 14px; color: #71717a; background-color: #fafafa; border-top: 1px solid #e4e4e7; }
+    `;
+
     if (!user) {
-      // Don't reveal whether user exists or not for security
-      return "If an account with this email exists, a password reset link has been sent.";
+      // Scenario 1: Email is not in the database
+      await sendEmail({
+        to: email, // Use the input email since user doesn't exist
+        subject: "Password Reset Request - Doable",
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head><style>${emailStyle}</style></head>
+          <body>
+            <div class="container">
+              <div class="header"><h1>Doable</h1></div>
+              <div class="content">
+                <p>Hello,</p>
+                <p>We recently received a request to reset the password for an account associated with this email address.</p>
+                <p>However, we couldn't find an existing Doable account registered with this email. If you'd like to join the platform, you can create a new account below.</p>
+                <div class="button-container">
+                  <a href="${config.frontendUrl}/register" class="button">Create an Account</a>
+                </div>
+                <p>If you didn't make this request, you can safely ignore this email.</p>
+              </div>
+              <div class="footer">&copy; ${new Date().getFullYear()} Doable. All rights reserved.</div>
+            </div>
+          </body>
+          </html>
+        `,
+      });
+      return genericResponse;
     }
 
     if (user.provider !== "CREDENTIALS") {
-      throw new AppError(
-        400,
-        "Password reset not available for this account type",
-        "OPERATION_NOT_ALLOWED",
-      );
+      // Scenario 2: Account exists, but they sign in via Google
+      await sendEmail({
+        to: user.email,
+        subject: "Doable Login Information",
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head><style>${emailStyle}</style></head>
+          <body>
+            <div class="container">
+              <div class="header"><h1>Doable</h1></div>
+              <div class="content">
+                <p>Hello,</p>
+                <p>You recently requested a password reset for your Doable account. However, this email is associated with a Google login rather than a standard password.</p>
+                <p>To access your account, please return to the login page and continue with Google.</p>
+                <div class="button-container">
+                  <a href="${config.frontendUrl}/login" class="button">Log In with Google</a>
+                </div>
+                <p>If you didn't make this request, please ensure your Google account is secure.</p>
+              </div>
+              <div class="footer">&copy; ${new Date().getFullYear()} Doable. All rights reserved.</div>
+            </div>
+          </body>
+          </html>
+        `,
+      });
+      return genericResponse;
     }
 
-    // Generate reset token
+    // Scenario 3: Standard password reset flow for valid CREDENTIALS users
     const resetToken = crypto.randomBytes(32).toString("hex");
     const hashedToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
 
-    // Save to DB with 15 minute expiry
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -318,16 +395,29 @@ const forgotPasswordService = async (email: string) => {
       },
     });
 
-    // Send email with reset link in production
-
     await sendEmail({
       to: user.email,
-      subject: "Password Reset Request",
+      subject: "Reset Your Password - Doable",
       html: `
-        <p>You requested a password reset. Click the link below to reset your password:</p>
-        <a href="${config.frontendUrl}/reset-password?token=${resetToken}&email=${user.email}">Reset Password</a>
-        <p>This link will expire in 15 minutes.</p>
-        <p>If you did not request this, please ignore this email.</p>
+        <!DOCTYPE html>
+        <html>
+        <head><style>${emailStyle}</style></head>
+        <body>
+          <div class="container">
+            <div class="header"><h1>Doable</h1></div>
+            <div class="content">
+              <p>Hello,</p>
+              <p>We received a request to reset the password for your Doable account. You can reset it by clicking the button below:</p>
+              <div class="button-container">
+                <a href="${config.frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}" class="button">Reset Password</a>
+              </div>
+              <p><strong>Note:</strong> This link will expire in 15 minutes for your security.</p>
+              <p>If you did not request a password reset, no further action is required and your password will remain the same.</p>
+            </div>
+            <div class="footer">&copy; ${new Date().getFullYear()} Doable. All rights reserved.</div>
+          </div>
+        </body>
+        </html>
       `,
     });
 
@@ -335,7 +425,7 @@ const forgotPasswordService = async (email: string) => {
       console.log(`Reset token for ${email}: ${resetToken}`);
     }
 
-    return "Password reset email sent successfully";
+    return genericResponse;
   } catch (error) {
     console.error("Error in forgotPasswordService:", error);
     throw error;
