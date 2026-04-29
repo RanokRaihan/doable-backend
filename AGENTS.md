@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-04-27 — Split `api-contract.md` into `api-contracts/` (shared.md + one file per module); updated all references in AGENTS.md and CLAUDE.md; removed demo route section
 - 2026-04-27 — Full rewrite of AGENTS.md and CLAUDE.md; created `.github/copilot-instructions.md`; removed boilerplate and duplicate content; fixed all route tables; added Architectural Decisions section
 - 2026-04-27 — Restructured context files; fixed task/user route tables; added missing routes (`my-posted-tasks`, `recently-posted`, `email-verification`); added Architectural Decisions section; aligned routes with actual code
 
@@ -159,7 +160,7 @@ DRAFT → OPEN → ASSIGNED → IN_PROGRESS → PENDING_REVIEW → PAYMENT_PROCE
 
 ## Auth Pattern
 
-See `api-contract.md §2` for full token shapes, cookie details, and 401 behavior. Summary:
+See `api-contracts/api-contract-auth.md` for full token shapes, cookie details, and 401 behavior. Summary:
 
 - **Access token:** HS256, signed with `JWT_ACCESS_SECRET`, sent via `Authorization: Bearer <token>`
 - **Refresh token:** HS256, signed with `JWT_REFRESH_SECRET`, stored as `httpOnly` cookie AND returned in response body (dual delivery for browser + mobile clients)
@@ -174,7 +175,7 @@ See `api-contract.md §2` for full token shapes, cookie details, and 401 behavio
 
 ## API Routes
 
-Full request/response contracts are in `api-contract.md`. This table is for navigation only.
+Full request/response contracts are in `api-contracts/` — see `api-contracts/index.md` for the module index. This table is for navigation only.
 
 ### Auth (`/api/v1/auth`)
 
@@ -261,10 +262,6 @@ Full request/response contracts are in `api-contract.md`. This table is for navi
 | GET    | `/commission-due`            | JWT  | USER  | All pending commission dues     |
 | GET    | `/commission-due/:dueId`     | JWT  | USER  | Commission due by ID            |
 | PATCH  | `/commission-due/pay/:dueId` | JWT  | USER  | Pay commission due from wallet  |
-
-### Demo (`/api/v1/demo`)
-
-Dev-only routes demonstrating `ResponseHandler` patterns. Remove before production.
 
 ---
 

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**Get It Done** is a Node.js/TypeScript REST API for a task marketplace — users post tasks, others apply, and the platform handles payment and wallet/commission settlement. Stack: Express 5, Prisma 6 (PostgreSQL), Zod 4, JWT (access + refresh tokens), bcryptjs, Nodemailer, SSLCommerz. No test runner is configured. See `AGENTS.md` for the module map and file locations. See `api-contract.md` for all endpoint contracts, shared types, and auth patterns.
+**Get It Done** is a Node.js/TypeScript REST API for a task marketplace — users post tasks, others apply, and the platform handles payment and wallet/commission settlement. Stack: Express 5, Prisma 6 (PostgreSQL), Zod 4, JWT (access + refresh tokens), bcryptjs, Nodemailer, SSLCommerz. No test runner is configured. See `AGENTS.md` for the module map and file locations. See `api-contracts/index.md` for all endpoint contracts, shared types, and auth patterns.
 
 ---
 
@@ -107,7 +107,8 @@ Use `parseQuery(req, options?)` + `buildPrismaQuery()` + `buildMeta()` from `src
 - Do not traverse the full codebase speculatively — check `AGENTS.md` for module/file locations first
 - Do not re-read files already described in `AGENTS.md` unless you need the exact implementation detail
 - Do not assume module file paths — verify against the module map in `AGENTS.md`
-- Do not change any endpoint shape, auth pattern, or response format without updating `api-contract.md` first
+- Do not change any endpoint shape, auth pattern, or response format without updating the relevant module file in `api-contracts/` first
+- Do not read all api-contract files upfront — check `api-contracts/index.md` first, then read only the module file relevant to the current task
 - Do not add `try/catch` in controllers — `asyncHandler` propagates errors
 - Do not put Prisma queries in controllers
 - Do not access `process.env` directly — use `config` from `src/config/index.ts`
@@ -124,7 +125,7 @@ After any task that creates or deletes a file, renames something, or makes an ar
 2. Append any architectural decision to `## Architectural Decisions`
 3. Add a one-line entry to `## Recent Changes` at the top of `AGENTS.md` (format: `YYYY-MM-DD — what changed`)
 
-Additionally, if the task touches any of the following, update `api-contract.md` immediately:
+Additionally, if the task touches any of the following, update the relevant module file in `api-contracts/` immediately:
 
 - Any endpoint (added, removed, renamed, param or response shape changed)
 - Any shared type or enum
