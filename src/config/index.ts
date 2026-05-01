@@ -27,6 +27,9 @@ interface Config {
     successUrl: string;
     failUrl: string;
     cancelUrl: string;
+    successUrlFrontend: string;
+    failUrlFrontend: string;
+    cancelUrlFrontend: string;
     gatewayBaseUrl: string;
     validationApiUrl: string;
     ipnUrl: string;
@@ -58,6 +61,9 @@ const config: Config = {
     successUrl: process.env.SUCCESS_URL || "",
     failUrl: process.env.FAIL_URL || "",
     cancelUrl: process.env.CANCEL_URL || "",
+    successUrlFrontend: process.env.SUCCESS_URL_FRONTEND || "",
+    failUrlFrontend: process.env.FAIL_URL_FRONTEND || "",
+    cancelUrlFrontend: process.env.CANCEL_URL_FRONTEND || "",
     ipnUrl: process.env.IPN_URL || "",
     gatewayBaseUrl: process.env.GATEWAY_BASE_URL || "",
     validationApiUrl: process.env.VALIDATION_API_URL || "",

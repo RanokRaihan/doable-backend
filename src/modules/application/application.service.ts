@@ -1,5 +1,12 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
+import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
+import { paymentSelectFieldsApplicant } from "../payment/payment.constant";
+import {
+  applicationFilterableFields,
+  ApplicationSearchFields,
+  applicationSortableFields,
+} from "./application.constant";
 import {
   CreateApplicationPayload,
   CreateApplicationRequest,
@@ -8,7 +15,7 @@ import {
 const createApplicationService = async (
   userId: string,
   taskId: string,
-  applicationData: CreateApplicationRequest
+  applicationData: CreateApplicationRequest,
 ) => {
   try {
     // Fetch task data
@@ -68,12 +75,56 @@ const createApplicationService = async (
   }
 };
 
-const getAllMyApplicationsService = async (userId: string) => {
+const getAllMyApplicationsService = async (
+  userId: string,
+  parsedQuery: ParsedQuery,
+) => {
   try {
-    const applications = await prisma.application.findMany({
-      where: {
-        applicantId: userId,
-      },
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      searchFields: ApplicationSearchFields,
+      filterFields: applicationFilterableFields,
+      sortFields: applicationSortableFields,
+    });
+
+    const mergedWhere = {
+      ...where,
+      applicantId: userId,
+    };
+
+    // Handle nested search for task title and description
+    if (parsedQuery.search.searchTerm) {
+      const searchTerm = parsedQuery.search.searchTerm;
+      mergedWhere.OR = [
+        {
+          message: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+        {
+          task: {
+            title: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          task: {
+            description: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+      ];
+      delete mergedWhere.message; // Remove the direct message search since it's in OR
+    }
+
+    const queryOptions: any = {
+      where: mergedWhere,
+      skip,
+      take,
       select: {
         id: true,
         message: true,
@@ -91,9 +142,19 @@ const getAllMyApplicationsService = async (userId: string) => {
           },
         },
       },
-    });
+    };
 
-    return applications;
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
+    }
+
+    const [applications, totalCount] = await Promise.all([
+      prisma.application.findMany(queryOptions),
+      prisma.application.count({ where: mergedWhere }),
+    ]);
+
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: applications, meta };
   } catch (error) {
     console.error("Error fetching applications:", error);
     throw error;
@@ -103,7 +164,8 @@ const getAllMyApplicationsService = async (userId: string) => {
 // get all application for a task
 const getAllApplicationsForTaskService = async (
   taskId: string,
-  userId: string
+  userId: string,
+  parsedQuery: ParsedQuery,
 ) => {
   try {
     const task = await prisma.task.findUnique({
@@ -117,14 +179,47 @@ const getAllApplicationsForTaskService = async (
     if (task.postedById !== userId) {
       throw new AppError(
         403,
-        "Forbidden: You are authorized to view these applications"
+        "Forbidden: You are not authorized to view these applications",
       );
     }
 
-    const applications = await prisma.application.findMany({
-      where: {
-        taskId: taskId,
-      },
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      searchFields: ApplicationSearchFields,
+      filterFields: applicationFilterableFields,
+      sortFields: applicationSortableFields,
+    });
+
+    const mergedWhere = {
+      ...where,
+      taskId: taskId,
+    };
+
+    // Handle nested search for applicant name and message
+    if (parsedQuery.search.searchTerm) {
+      const searchTerm = parsedQuery.search.searchTerm;
+      mergedWhere.OR = [
+        {
+          message: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+        {
+          applicant: {
+            name: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+      ];
+      delete mergedWhere.message; // Remove the direct message search since it's in OR
+    }
+
+    const queryOptions: any = {
+      where: mergedWhere,
+      skip,
+      take,
       select: {
         id: true,
         message: true,
@@ -141,9 +236,19 @@ const getAllApplicationsForTaskService = async (
           },
         },
       },
-    });
+    };
 
-    return applications;
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
+    }
+
+    const [applications, totalCount] = await Promise.all([
+      prisma.application.findMany(queryOptions),
+      prisma.application.count({ where: mergedWhere }),
+    ]);
+
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: applications, meta };
   } catch (error) {
     console.error("Error fetching applications for task:", error);
     throw error;
@@ -153,25 +258,26 @@ const getAllApplicationsForTaskService = async (
 // get application by id
 const getApplicationByIdService = async (
   applicationId: string,
-  userId: string
+  userId: string,
 ) => {
   try {
     const application = await prisma.application.findUnique({
       where: { id: applicationId },
       include: {
-        applicant: {
+        task: {
           select: {
             id: true,
-            name: true,
+            title: true,
+            description: true,
+            status: true,
+            postedById: true,
+            postedBy: {
+              select: { id: true, name: true, image: true },
+            },
           },
         },
-        task: {
-          omit: {
-            approvedApplicationId: true,
-            isDeleted: true,
-            deletedAt: true,
-            deletedBy: true,
-          },
+        applicant: {
+          select: { id: true, name: true, image: true },
         },
       },
     });
@@ -187,8 +293,41 @@ const getApplicationByIdService = async (
     ) {
       throw new AppError(
         403,
-        "Forbidden: You are not authorized to view this application"
+        "Forbidden: You are not authorized to view this application",
       );
+    }
+
+    // If task status is PAYMENT_PROCESSING and application is APPROVED, include payment information
+    if (
+      application.task.status === "PAYMENT_PROCESSING" &&
+      application.status === "APPROVED"
+    ) {
+      const applicationWithPayment = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: {
+          task: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              status: true,
+              postedById: true,
+              postedBy: {
+                select: { id: true, name: true, image: true },
+              },
+              payments: {
+                select: {
+                  ...paymentSelectFieldsApplicant,
+                },
+              },
+            },
+          },
+          applicant: {
+            select: { id: true, name: true, image: true },
+          },
+        },
+      });
+      return applicationWithPayment;
     }
 
     return application;
@@ -201,7 +340,7 @@ const getApplicationByIdService = async (
 // approve application (for task owner)
 const approveApplicationService = async (
   applicationId: string,
-  userId: string
+  userId: string,
 ) => {
   try {
     const application = await prisma.application.findUnique({
@@ -219,7 +358,7 @@ const approveApplicationService = async (
     if (application.task.postedById !== userId) {
       throw new AppError(
         403,
-        "Forbidden: You are not authorized to approve this application"
+        "Forbidden: You are not authorized to approve this application",
       );
     }
 
@@ -227,7 +366,7 @@ const approveApplicationService = async (
     if (application.status !== "PENDING") {
       throw new AppError(
         400,
-        `Cannot approve application with ${application.status.toLowerCase()} status`
+        `Cannot approve application with ${application.status.toLowerCase()} status`,
       );
     }
     // Check if task is still open
@@ -293,7 +432,7 @@ const approveApplicationService = async (
 const rejectApplicationService = async (
   applicationId: string,
   userId: string,
-  rejectionReason: string
+  rejectionReason: string,
 ) => {
   try {
     const application = await prisma.application.findUnique({
@@ -311,7 +450,7 @@ const rejectApplicationService = async (
     if (application.task.postedById !== userId) {
       throw new AppError(
         403,
-        "Forbidden: You are not authorized to reject this application"
+        "Forbidden: You are not authorized to reject this application",
       );
     }
 
@@ -319,7 +458,7 @@ const rejectApplicationService = async (
     if (application.status !== "PENDING") {
       throw new AppError(
         400,
-        `Cannot reject application with ${application.status.toLowerCase()} status`
+        `Cannot reject application with ${application.status.toLowerCase()} status`,
       );
     }
 
@@ -339,7 +478,7 @@ const rejectApplicationService = async (
 const withdrawApplicationService = async (
   applicationId: string,
   userId: string,
-  withdrawalReason: string
+  withdrawalReason: string,
 ) => {
   try {
     const application = await prisma.application.findUnique({
@@ -357,14 +496,14 @@ const withdrawApplicationService = async (
     if (application.status !== "PENDING") {
       throw new AppError(
         400,
-        `this application cannot be withdrawn because it is in  ${application.status.toLocaleLowerCase()} status`
+        `this application cannot be withdrawn because it is in  ${application.status.toLocaleLowerCase()} status`,
       );
     }
     if (application.applicantId !== userId) {
       // Check if the requester is the applicant
       throw new AppError(
         403,
-        "Forbidden: You are not authorized to withdraw this application"
+        "Forbidden: You are not authorized to withdraw this application",
       );
     }
 

@@ -8,7 +8,11 @@ import {
   getAllPaymentMadeController,
   getAllPaymentReceivedController,
   getPaymentByIdController,
+  getPaymentBySessionTokenController,
   onlinePaymentInitController,
+  paymentCancelController,
+  paymentFailController,
+  paymentSuccessController,
   validateOnlinePaymentController,
 } from "./payment.controller";
 
@@ -18,25 +22,29 @@ router.post(
   "/cash/init/:taskId",
   auth,
   authorize(["USER"]),
-  cashPaymentInitController
+  cashPaymentInitController,
 );
+router.post("/success", paymentSuccessController);
+router.post("/fail", paymentFailController);
+router.post("/cancel", paymentCancelController);
+
 router.patch(
   "/cash/confirm/:paymentId",
   auth,
   authorize(["USER"]),
-  cashPaymentConfirmController
+  cashPaymentConfirmController,
 );
 router.patch(
   "/cash/decline/:paymentId",
   auth,
   authorize(["USER"]),
-  cashPaymentDeclineController
+  cashPaymentDeclineController,
 );
 router.post(
   "/online/init/:taskId",
   auth,
   authorize(["USER"]),
-  onlinePaymentInitController
+  onlinePaymentInitController,
 );
 router.post("/online/ipn-validate/", validateOnlinePaymentController);
 
@@ -45,14 +53,20 @@ router.get(
   "/user/payment-made",
   auth,
   authorize(["USER"]),
-  getAllPaymentMadeController
+  getAllPaymentMadeController,
 );
 
 router.get(
   "/user/payment-received",
   auth,
   authorize(["USER"]),
-  getAllPaymentReceivedController
+  getAllPaymentReceivedController,
+);
+router.get(
+  "/session/:sessionToken",
+  auth,
+  authorize(["USER"]),
+  getPaymentBySessionTokenController,
 );
 router.get("/:id", auth, authorize(["USER"]), getPaymentByIdController);
 

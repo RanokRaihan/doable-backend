@@ -11,6 +11,7 @@ import {
   changeUserPasswordService,
   forgotPasswordService,
   getCurrentUserService,
+  getEmailVerificationDataService,
   loginUserService,
   refreshAuthTokenService,
   resetPasswordService,
@@ -39,8 +40,9 @@ const loginController: RequestHandler = asyncHandler(async (req, res) => {
     {
       user,
       accessToken,
+      refreshToken,
     },
-    { path: req.path }
+    { path: req.path },
   );
 });
 
@@ -67,7 +69,7 @@ const getCurrentUserController: RequestHandler = asyncHandler(
       return ResponseHandler.unauthorized(
         res,
         "User not authenticated",
-        req.path
+        req.path,
       );
     }
 
@@ -76,7 +78,7 @@ const getCurrentUserController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(res, "User retrieved successfully", user, {
       path: req.path,
     });
-  }
+  },
 );
 
 const changePasswordController: RequestHandler = asyncHandler(
@@ -88,7 +90,7 @@ const changePasswordController: RequestHandler = asyncHandler(
       return ResponseHandler.unauthorized(
         res,
         "User not authenticated",
-        req.path
+        req.path,
       );
     }
 
@@ -97,7 +99,7 @@ const changePasswordController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(res, "Password changed successfully", null, {
       path: req.path,
     });
-  }
+  },
 );
 
 const forgotPasswordController: RequestHandler = asyncHandler(
@@ -109,7 +111,7 @@ const forgotPasswordController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(res, "Password reset email sent", null, {
       path: req.path,
     });
-  }
+  },
 );
 
 const resetPasswordController: RequestHandler = asyncHandler(
@@ -121,26 +123,25 @@ const resetPasswordController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(res, "Password reset successfully", null, {
       path: req.path,
     });
-  }
+  },
 );
 
 const refreshTokenController: RequestHandler = asyncHandler(
   async (req, res) => {
     // Extract refresh token from cookies
-    // TODO: change later to request body if needed
-    const refreshToken = req.cookies.refreshToken;
+
+    const refreshToken = req.body.refreshToken || req.cookies.refreshToken;
 
     if (!refreshToken) {
       return ResponseHandler.unauthorized(
         res,
         "Refresh token is missing",
-        req.path
+        req.path,
       );
     }
 
-    const { newAccessToken, newRefreshToken } = await refreshAuthTokenService(
-      refreshToken
-    );
+    const { newAccessToken, newRefreshToken } =
+      await refreshAuthTokenService(refreshToken);
 
     // Set new refresh token as httpOnly cookie
     res.cookie("refreshToken", newRefreshToken, {
@@ -153,16 +154,39 @@ const refreshTokenController: RequestHandler = asyncHandler(
     return ResponseHandler.ok(
       res,
       "Token refreshed successfully",
-      { accessToken: newAccessToken },
-      { path: req.path }
+      { accessToken: newAccessToken, refreshToken: newRefreshToken },
+      { path: req.path },
     );
-  }
+  },
 );
+// Get email verification data controller
+const getEmailVerificationDataController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const userEmail = req.user?.email;
 
+    if (!userEmail) {
+      return ResponseHandler.unauthorized(
+        res,
+        "User not authenticated",
+        req.path,
+      );
+    }
+
+    // Call service to get email verification data
+    const verificationData = await getEmailVerificationDataService(userEmail);
+
+    return ResponseHandler.ok(
+      res,
+      "Email verification data retrieved successfully",
+      verificationData,
+      { path: req.path },
+    );
+  },
+);
 // email verification controllers
 const sendVerificationController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const email = req.body?.email;
+    const email = req.user?.email;
 
     if (!email) {
       throw new AppError(400, "Email is required to send verification email");
@@ -171,7 +195,7 @@ const sendVerificationController: RequestHandler = asyncHandler(
     // Call service to send verification email
     await sendVerificationEmailService(email);
     sendResponse(res, 200, "Verification email sent successfully", null);
-  }
+  },
 );
 
 const verifyEmailController: RequestHandler = asyncHandler(async (req, res) => {
@@ -180,9 +204,20 @@ const verifyEmailController: RequestHandler = asyncHandler(async (req, res) => {
     throw new AppError(400, "Verification token is required");
   }
   // Call service to verify email
-  const verifiedUser = await verifyEmailService(token);
+  const { user, accessToken, refreshToken } = await verifyEmailService(token);
 
-  sendResponse(res, 200, "Email verified successfully", verifiedUser);
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: config.nodeEnv === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  sendResponse(res, 200, "Email verified successfully", {
+    user,
+    accessToken,
+    refreshToken,
+  });
 });
 
 // Export all controllers
@@ -190,6 +225,7 @@ export {
   changePasswordController,
   forgotPasswordController,
   getCurrentUserController,
+  getEmailVerificationDataController,
   loginController,
   logoutController,
   refreshTokenController,

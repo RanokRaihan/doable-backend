@@ -88,6 +88,10 @@ export const updateAvatarSchema = z.object({
     .strict(),
 });
 
+export const getPublicProfileSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>["body"];
 export type UpdateUserInput = z.infer<typeof updateUserSchema>["body"];
 export type CompleteUserProfileInput = z.infer<

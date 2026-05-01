@@ -1,8 +1,8 @@
-# Get It Done - API Endpoints Documentation
+# Doable - API Endpoints Documentation
 
 **Version:** 1.0  
 **Date:** November 29, 2025  
-**Project:** Get It Done Backend
+**Project:** Doable Backend
 
 ---
 
@@ -234,5 +234,5 @@
 ---
 
 **Document Generated:** November 29, 2025  
-**For:** Get It Done Backend Development  
+**For:** Doable Backend Development  
 **Maintained By:** Development Team

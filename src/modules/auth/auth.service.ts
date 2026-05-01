@@ -25,6 +25,7 @@ const loginUserService = async (loginData: UserLoginInput) => {
         name: true,
         role: true,
         password: true,
+        image: true,
         provider: true,
         profileStatus: true,
         emailVerified: true,
@@ -35,7 +36,7 @@ const loginUserService = async (loginData: UserLoginInput) => {
     });
 
     if (!userWithPassword || userWithPassword.isDeleted) {
-      throw new AppError(401, "Invalid credentials", "AUTHENTICATION_ERROR");
+      throw new AppError(400, "Invalid credentials", "AUTHENTICATION_ERROR");
     }
 
     if (
@@ -43,34 +44,50 @@ const loginUserService = async (loginData: UserLoginInput) => {
       userWithPassword.provider !== "CREDENTIALS"
     ) {
       throw new AppError(
-        401,
+        400,
         "Login Method not supported! Please use a different method.",
-        "AUTHENTICATION_ERROR"
+        "AUTHENTICATION_ERROR",
       );
     }
 
     // Check if account is locked
     if (userWithPassword.lockedAt) {
+      const lockTime = new Date(userWithPassword.lockedAt).getTime();
+      const currentTime = new Date().getTime();
+      const lockDurationMs = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+      if (currentTime - lockTime < lockDurationMs) {
+        throw new AppError(
+          423,
+          "Too many failed login attempts. Please try again later or reset your password.",
+          "ACCOUNT_LOCKED",
+        );
+      }
+
+      // Lock period expired, unlock the account
+      await resetFailedLoginCount(userWithPassword.id);
+    }
+    if (userWithPassword.lockedAt) {
       throw new AppError(
         423,
-        "Account is locked. Please contact support.",
-        "ACCOUNT_LOCKED"
+        "Too many failed login attempts. Please try again later or reset your password.",
+        "ACCOUNT_LOCKED",
       );
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(
       password,
-      userWithPassword.password
+      userWithPassword.password,
     );
     if (!isPasswordValid) {
       // Increment failed login count
       await incrementFailedLoginCount(
         userWithPassword.id,
-        userWithPassword.failedLoginCount
+        userWithPassword.failedLoginCount,
       );
 
-      throw new AppError(401, "Invalid credentials", "AUTHENTICATION_ERROR");
+      throw new AppError(400, "Invalid credentials", "AUTHENTICATION_ERROR");
     }
 
     // Reset failed login count and update last login
@@ -81,7 +98,8 @@ const loginUserService = async (loginData: UserLoginInput) => {
       userId: userWithPassword.id,
       email: userWithPassword.email,
       name: userWithPassword.name,
-      userRole: userWithPassword.role,
+      role: userWithPassword.role,
+      emailVerified: userWithPassword.emailVerified,
       profileStatus: userWithPassword.profileStatus,
     };
 
@@ -89,13 +107,13 @@ const loginUserService = async (loginData: UserLoginInput) => {
     const accessToken = createToken(
       jwtPayload,
       accessSecret,
-      accessExpiresIn as SignOptions["expiresIn"]
+      accessExpiresIn as SignOptions["expiresIn"],
     );
 
     const refreshToken = createToken(
       jwtPayload,
       refreshSecret,
-      refreshExpiresIn as SignOptions["expiresIn"]
+      refreshExpiresIn as SignOptions["expiresIn"],
     );
 
     // Return clean user data without password
@@ -104,6 +122,8 @@ const loginUserService = async (loginData: UserLoginInput) => {
       email: userWithPassword.email,
       name: userWithPassword.name,
       role: userWithPassword.role,
+      profileStatus: userWithPassword.profileStatus,
+      image: userWithPassword.image,
     };
 
     return {
@@ -122,17 +142,20 @@ const getCurrentUserService = async (userId: string) => {
   try {
     const user = await prisma.user.findFirst({
       where: { id: userId, isDeleted: false },
-      omit: {
-        password: true,
-        passwordResetToken: true,
-        passwordResetAt: true,
-        failedLoginCount: true,
-        lockedAt: true,
-        deletedAt: true,
-        deletedBy: true,
-        createdAt: true,
-        updatedAt: true,
-        isDeleted: true,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        address: true,
+        phone: true,
+        dateOfBirth: true,
+        gender: true,
+        bio: true,
+        profileStatus: true,
+        provider: true,
+        image: true,
+        emailVerified: true,
       },
     });
 
@@ -146,12 +169,37 @@ const getCurrentUserService = async (userId: string) => {
     throw error;
   }
 };
+// Get current user by ID
+const getAuthUser = async (userId: string) => {
+  try {
+    const user = await prisma.user.findFirst({
+      where: { id: userId, isDeleted: false },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        profileStatus: true,
+        isDeleted: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError(404, "User not found", "NOT_FOUND");
+    }
+
+    return user;
+  } catch (error) {
+    console.error("Error in getAuthUserService:", error);
+    throw error;
+  }
+};
 
 // Change user password
 const changeUserPasswordService = async (
   userEmail: string,
   oldPassword: string,
-  newPassword: string
+  newPassword: string,
 ) => {
   try {
     // Get user with password
@@ -173,7 +221,7 @@ const changeUserPasswordService = async (
       throw new AppError(
         400,
         "Password change not allowed for this account type",
-        "OPERATION_NOT_ALLOWED"
+        "OPERATION_NOT_ALLOWED",
       );
     }
 
@@ -183,7 +231,7 @@ const changeUserPasswordService = async (
       throw new AppError(
         401,
         "Current password is incorrect",
-        "AUTHENTICATION_ERROR"
+        "AUTHENTICATION_ERROR",
       );
     }
 
@@ -209,7 +257,7 @@ const changeUserPasswordService = async (
 // Increment failed login count and lock account if necessary
 const incrementFailedLoginCount = async (
   userId: string,
-  failedLoginCount: number
+  failedLoginCount: number,
 ) => {
   try {
     await prisma.user.update({
@@ -217,7 +265,7 @@ const incrementFailedLoginCount = async (
       data: {
         failedLoginCount: failedLoginCount + 1,
         // Lock account after 5 failed attempts
-        ...(failedLoginCount >= 4 && {
+        ...(failedLoginCount >= 5 && {
           lockedAt: new Date(),
         }),
       },
@@ -256,27 +304,89 @@ const forgotPasswordService = async (email: string) => {
       },
     });
 
+    // The unified response returned to the controller to prevent email enumeration
+    const genericResponse =
+      "If an account with this email exists, a password reset link has been sent.";
+
+    // Shared email styles for a clean, responsive, and modern UI
+    const emailStyle = `
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 40px 0; }
+      .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+      .header { background-color: #09090b; padding: 24px; text-align: center; }
+      .header h1 { margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.025em; }
+      .content { padding: 32px; color: #3f3f46; line-height: 1.6; font-size: 16px; }
+      .button-container { text-align: center; margin: 32px 0; }
+      .button { background-color: #09090b; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block; transition: background-color 0.2s; }
+      .footer { padding: 24px; text-align: center; font-size: 14px; color: #71717a; background-color: #fafafa; border-top: 1px solid #e4e4e7; }
+    `;
+
     if (!user) {
-      // Don't reveal whether user exists or not for security
-      return "If an account with this email exists, a password reset link has been sent.";
+      // Scenario 1: Email is not in the database
+      await sendEmail({
+        to: email, // Use the input email since user doesn't exist
+        subject: "Password Reset Request - Doable",
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head><style>${emailStyle}</style></head>
+          <body>
+            <div class="container">
+              <div class="header"><h1>Doable</h1></div>
+              <div class="content">
+                <p>Hello,</p>
+                <p>We recently received a request to reset the password for an account associated with this email address.</p>
+                <p>However, we couldn't find an existing Doable account registered with this email. If you'd like to join the platform, you can create a new account below.</p>
+                <div class="button-container">
+                  <a href="${config.frontendUrl}/register" class="button">Create an Account</a>
+                </div>
+                <p>If you didn't make this request, you can safely ignore this email.</p>
+              </div>
+              <div class="footer">&copy; ${new Date().getFullYear()} Doable. All rights reserved.</div>
+            </div>
+          </body>
+          </html>
+        `,
+      });
+      return genericResponse;
     }
 
     if (user.provider !== "CREDENTIALS") {
-      throw new AppError(
-        400,
-        "Password reset not available for this account type",
-        "OPERATION_NOT_ALLOWED"
-      );
+      // Scenario 2: Account exists, but they sign in via Google
+      await sendEmail({
+        to: user.email,
+        subject: "Doable Login Information",
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head><style>${emailStyle}</style></head>
+          <body>
+            <div class="container">
+              <div class="header"><h1>Doable</h1></div>
+              <div class="content">
+                <p>Hello,</p>
+                <p>You recently requested a password reset for your Doable account. However, this email is associated with a Google login rather than a standard password.</p>
+                <p>To access your account, please return to the login page and continue with Google.</p>
+                <div class="button-container">
+                  <a href="${config.frontendUrl}/login" class="button">Log In with Google</a>
+                </div>
+                <p>If you didn't make this request, please ensure your Google account is secure.</p>
+              </div>
+              <div class="footer">&copy; ${new Date().getFullYear()} Doable. All rights reserved.</div>
+            </div>
+          </body>
+          </html>
+        `,
+      });
+      return genericResponse;
     }
 
-    // Generate reset token
+    // Scenario 3: Standard password reset flow for valid CREDENTIALS users
     const resetToken = crypto.randomBytes(32).toString("hex");
     const hashedToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
 
-    // Save to DB with 15 minute expiry
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -285,16 +395,29 @@ const forgotPasswordService = async (email: string) => {
       },
     });
 
-    // Send email with reset link in production
-
     await sendEmail({
       to: user.email,
-      subject: "Password Reset Request",
+      subject: "Reset Your Password - Doable",
       html: `
-        <p>You requested a password reset. Click the link below to reset your password:</p>
-        <a href="${config.frontendUrl}/reset-password?token=${resetToken}&email=${user.email}">Reset Password</a>
-        <p>This link will expire in 15 minutes.</p>
-        <p>If you did not request this, please ignore this email.</p>
+        <!DOCTYPE html>
+        <html>
+        <head><style>${emailStyle}</style></head>
+        <body>
+          <div class="container">
+            <div class="header"><h1>Doable</h1></div>
+            <div class="content">
+              <p>Hello,</p>
+              <p>We received a request to reset the password for your Doable account. You can reset it by clicking the button below:</p>
+              <div class="button-container">
+                <a href="${config.frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}" class="button">Reset Password</a>
+              </div>
+              <p><strong>Note:</strong> This link will expire in 15 minutes for your security.</p>
+              <p>If you did not request a password reset, no further action is required and your password will remain the same.</p>
+            </div>
+            <div class="footer">&copy; ${new Date().getFullYear()} Doable. All rights reserved.</div>
+          </div>
+        </body>
+        </html>
       `,
     });
 
@@ -302,9 +425,35 @@ const forgotPasswordService = async (email: string) => {
       console.log(`Reset token for ${email}: ${resetToken}`);
     }
 
-    return "Password reset email sent successfully";
+    return genericResponse;
   } catch (error) {
     console.error("Error in forgotPasswordService:", error);
+    throw error;
+  }
+};
+// getEmail verification data for logged in user
+const getEmailVerificationDataService = async (userEmail: string) => {
+  try {
+    const user = await prisma.user.findFirst({
+      where: { email: userEmail.toLowerCase().trim(), isDeleted: false },
+      select: {
+        emailVerified: true,
+        emailVerifiedAt: true,
+        emailVerificationSentAt: true,
+        emailVerificationExpiresAt: true,
+      },
+    });
+    if (!user) {
+      throw new AppError(404, "User not found", "NOT_FOUND");
+    }
+    return {
+      emailVerified: user.emailVerified,
+      emailVerificationSentAt: user.emailVerificationSentAt,
+      emailVerificationExpiresAt: user.emailVerificationExpiresAt,
+      emailVerifiedAt: user.emailVerifiedAt,
+    };
+  } catch (error) {
+    console.error("Error in getEmailVerificationDataService:", error);
     throw error;
   }
 };
@@ -313,7 +462,7 @@ const forgotPasswordService = async (email: string) => {
 const resetPasswordService = async (
   email: string,
   newPassword: string,
-  resetToken: string
+  resetToken: string,
 ) => {
   try {
     const user = await prisma.user.findFirst({
@@ -331,7 +480,7 @@ const resetPasswordService = async (
       throw new AppError(
         400,
         "Invalid or expired reset token",
-        "INVALID_TOKEN"
+        "INVALID_TOKEN",
       );
     }
 
@@ -345,7 +494,7 @@ const resetPasswordService = async (
       throw new AppError(
         400,
         "Invalid or expired reset token",
-        "INVALID_TOKEN"
+        "INVALID_TOKEN",
       );
     }
 
@@ -394,6 +543,7 @@ const refreshAuthTokenService = async (token: string) => {
         name: true,
         role: true,
         profileStatus: true,
+        emailVerified: true,
       },
     });
 
@@ -403,10 +553,11 @@ const refreshAuthTokenService = async (token: string) => {
 
     // Create new JWT payload
     const jwtPayload: IJwtPayload = {
+      emailVerified: user.emailVerified,
       userId: user.id,
       email: user.email,
       name: user.name,
-      userRole: user.role,
+      role: user.role,
       profileStatus: user.profileStatus,
     };
 
@@ -414,12 +565,12 @@ const refreshAuthTokenService = async (token: string) => {
     const newAccessToken = createToken(
       jwtPayload,
       accessSecret,
-      accessExpiresIn as SignOptions["expiresIn"]
+      accessExpiresIn as SignOptions["expiresIn"],
     );
     const newRefreshToken = createToken(
       jwtPayload,
       refreshSecret,
-      refreshExpiresIn as SignOptions["expiresIn"]
+      refreshExpiresIn as SignOptions["expiresIn"],
     );
     return {
       newAccessToken,
@@ -450,22 +601,22 @@ const sendVerificationEmailService = async (email: string) => {
       throw new AppError(
         400,
         "Email verification not available for this account type",
-        "OPERATION_NOT_ALLOWED"
+        "OPERATION_NOT_ALLOWED",
       );
     }
     if (
       user.emailVerificationToken &&
       user.emailVerificationSentAt &&
-      user.emailVerificationSentAt > new Date(Date.now() - 5 * 60 * 1000)
+      user.emailVerificationSentAt > new Date(Date.now() - 1 * 60 * 1000)
     ) {
       const { minutes, seconds } = getTimeRemaining(
-        new Date(user.emailVerificationSentAt.getTime() + 5 * 60 * 1000)
+        new Date(user.emailVerificationSentAt.getTime() + 1 * 60 * 1000),
       );
 
       throw new AppError(
         400,
         `A verification email has already been sent. Please check your inbox. You can request a new one after ${minutes} minutes and ${seconds} seconds`,
-        "ALREADY_SENT"
+        "ALREADY_SENT",
       );
     }
     // Generate verification token
@@ -528,7 +679,7 @@ const verifyEmailService = async (rawToken: string) => {
       throw new AppError(
         400,
         "Invalid or expired verification link",
-        "TOKEN_INVALID"
+        "TOKEN_INVALID",
       );
     }
 
@@ -551,11 +702,38 @@ const verifyEmailService = async (rawToken: string) => {
         id: true,
         email: true,
         name: true,
+        role: true,
+        profileStatus: true,
         emailVerified: true,
       },
     });
 
-    return updatedUser;
+    // Generate new tokens with emailVerified: true
+    const jwtPayload: IJwtPayload = {
+      userId: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      role: updatedUser.role,
+      emailVerified: updatedUser.emailVerified,
+      profileStatus: updatedUser.profileStatus,
+    };
+
+    const accessToken = createToken(
+      jwtPayload,
+      accessSecret,
+      accessExpiresIn as SignOptions["expiresIn"],
+    );
+    const refreshToken = createToken(
+      jwtPayload,
+      refreshSecret,
+      refreshExpiresIn as SignOptions["expiresIn"],
+    );
+
+    return {
+      user: updatedUser,
+      accessToken,
+      refreshToken,
+    };
   } catch (error) {
     console.error("Error in verifyEmailService:", error);
     throw error;
@@ -566,7 +744,9 @@ const verifyEmailService = async (rawToken: string) => {
 export {
   changeUserPasswordService,
   forgotPasswordService,
+  getAuthUser,
   getCurrentUserService,
+  getEmailVerificationDataService,
   incrementFailedLoginCount,
   loginUserService,
   refreshAuthTokenService,

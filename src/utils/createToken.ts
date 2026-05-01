@@ -5,7 +5,7 @@ import { AppError } from "./appError";
 export const createToken = (
   jwtPayload: IJwtPayload,
   secret: string,
-  expiresIn?: SignOptions["expiresIn"]
+  expiresIn?: SignOptions["expiresIn"],
 ): string => {
   if (!jwtPayload || typeof jwtPayload !== "object") {
     throw new AppError(400, "Invalid JWT payload");
@@ -18,7 +18,7 @@ export const createToken = (
   try {
     const options: SignOptions = {
       algorithm: "HS256",
-      issuer: process.env.JWT_ISSUER || "get-it-done-app",
+      issuer: process.env.JWT_ISSUER || "Doable-app",
     };
 
     if (expiresIn) {
@@ -41,7 +41,7 @@ export const createToken = (
       500,
       `Token creation failed: ${
         error instanceof Error ? error.message : "Unknown error"
-      }`
+      }`,
     );
   }
 };

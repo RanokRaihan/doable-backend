@@ -316,20 +316,6 @@ enum PaymentStatus {
   REFUNDED
 }
 
-enum WalletTransactionType {
-  CREDIT
-  DEBIT
-}
-
-enum WalletTransactionCategory {
-  TASK_PAYMENT
-  DIRECT_COMMISSION_DEDUCTION
-  DUE_COMMISSION_DEDUCTION
-  BONUS
-  REFUND
-  WITHDRAWAL
-}
-
 enum CommissionStatus {
   DUE
   PAID
@@ -427,6 +413,20 @@ enum WalletTransactionStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum WalletTransactionCategory {
+  TASK_PAYMENT
+  DIRECT_COMMISSION_DEDUCTION
+  DUE_COMMISSION_DEDUCTION
+  BONUS
+  REFUND
+  WITHDRAWAL
 }
 
 model WalletTransaction {
