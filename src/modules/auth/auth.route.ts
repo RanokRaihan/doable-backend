@@ -5,6 +5,7 @@ import {
   changePasswordController,
   forgotPasswordController,
   getCurrentUserController,
+  getEmailVerificationDataController,
   loginController,
   logoutController,
   refreshTokenController,
@@ -14,7 +15,6 @@ import {
 } from "./auth.controller";
 import {
   loginValidationSchema,
-  sendVerificationEmailSchema,
   verifyEmailValidationSchema,
 } from "./auth.validation";
 
@@ -24,19 +24,17 @@ router.post("/login", validateRequest(loginValidationSchema), loginController);
 router.post("/logout", logoutController);
 router.post("/refresh-token", refreshTokenController);
 router.get("/current-user", auth, getCurrentUserController);
+router.get("/loggedin-user", auth, getCurrentUserController);
 router.post("/update-password", auth, changePasswordController);
 router.post("/forgot-password", forgotPasswordController);
 router.post("/reset-password", resetPasswordController);
 // email verfication
-router.post(
-  "/send-verification-email",
-  validateRequest(sendVerificationEmailSchema),
-  sendVerificationController
-);
+router.get("/email-verification", auth, getEmailVerificationDataController);
+router.post("/send-verification-email", auth, sendVerificationController);
 router.post(
   "/verify-email",
   validateRequest(verifyEmailValidationSchema),
-  verifyEmailController
+  verifyEmailController,
 );
 
 export default router;

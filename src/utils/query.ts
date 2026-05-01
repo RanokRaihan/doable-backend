@@ -87,7 +87,23 @@ function buildPrismaQuery(
   Object.entries(filter).forEach(([key, value]) => {
     if (value === undefined) return;
     if (filterFields.length && !filterFields.includes(key)) return;
-    where[key] = value;
+
+    // Handle multiple value filtering (category, priority, and status)
+    if (
+      (key === "category" || key === "priority" || key === "status") &&
+      typeof value === "string" &&
+      value.includes(",")
+    ) {
+      // Split comma-separated values
+      const values = value
+        .split(",")
+        .map((val: string) => val.trim())
+        .filter(Boolean);
+      where[key] = { in: values };
+    } else {
+      // Single value
+      where[key] = value;
+    }
   });
 
   const isSortable =

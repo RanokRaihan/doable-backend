@@ -95,20 +95,161 @@ const getAllTasksSchema = z.object({
         })
         .optional(),
       category: z
-        .enum(TaskCategory, {
-          error: `Invalid category! Allowed categories are: ${Object.values(
-            TaskCategory,
-          ).join(", ")}`,
-        })
+        .union([
+          z.enum(TaskCategory),
+          z.string().refine((val) => {
+            const categories = val.split(',').map(cat => cat.trim());
+            return categories.every(cat => Object.values(TaskCategory).includes(cat as TaskCategory));
+          }, {
+            message: `Invalid category! Allowed categories are: ${Object.values(TaskCategory).join(', ')}`
+          })
+        ])
         .optional(),
       priority: z
-        .enum(TaskPriority, {
-          error: `Invalid priority! Allowed priorities are: ${Object.values(TaskPriority).join(", ")}`,
-        })
+        .union([
+          z.enum(TaskPriority),
+          z.string().refine((val) => {
+            const priorities = val.split(',').map(pri => pri.trim());
+            return priorities.every(pri => Object.values(TaskPriority).includes(pri as TaskPriority));
+          }, {
+            message: `Invalid priority! Allowed priorities are: ${Object.values(TaskPriority).join(', ')}`
+          })
+        ])
         .optional(),
     })
     .strict(),
 });
+
+// Get all tasks posted by the current user query validation
+const getAllMyTasksSchema = z.object({
+  query: z
+    .object({
+      page: z
+        .string()
+        .optional()
+        .refine((val) => !val || /^\d+$/.test(val), {
+          message: "Page must be a positive integer",
+        }),
+      limit: z
+        .string()
+        .optional()
+        .refine((val) => !val || /^\d+$/.test(val), {
+          message: "Limit must be a positive integer",
+        }),
+      sortBy: z
+        .enum(taskSortableFields, {
+          error: `Invalid sortBy field! Allowed fields are: ${taskSortableFields.join(", ")}`,
+        })
+        .optional(),
+      sortOrder: z
+        .enum(["asc", "desc"], {
+          error: "sortOrder must be either 'asc' or 'desc'",
+        })
+        .optional(),
+      searchTerm: z.string().optional(),
+      category: z
+        .union([
+          z.enum(TaskCategory),
+          z.string().refine((val) => {
+            const categories = val.split(',').map(cat => cat.trim());
+            return categories.every(cat => Object.values(TaskCategory).includes(cat as TaskCategory));
+          }, {
+            message: `Invalid category! Allowed categories are: ${Object.values(TaskCategory).join(', ')}`
+          })
+        ])
+        .optional(),
+      priority: z
+        .union([
+          z.enum(TaskPriority),
+          z.string().refine((val) => {
+            const priorities = val.split(',').map(pri => pri.trim());
+            return priorities.every(pri => Object.values(TaskPriority).includes(pri as TaskPriority));
+          }, {
+            message: `Invalid priority! Allowed priorities are: ${Object.values(TaskPriority).join(', ')}`
+          })
+        ])
+        .optional(),
+    })
+    .strict(),
+});
+
+// Get specific task posted by the current user validation
+const getMyPostedTaskSchema = z.object({
+  params: z.object({
+    taskId: z.string().min(1, "Task ID is required"),
+  }),
+});
+
+const addTaskImagesSchema = z.object({
+  params: z.object({
+    taskId: z.string().min(1, "Task ID is required"),
+  }),
+  body: z
+    .object({
+      images: z
+        .array(
+          z.object({
+            url: z
+              .url("Invalid URL format")
+              .max(500, "URL must be 500 characters or less"),
+            altText: z
+              .string()
+              .max(255, "Alt text must be 255 characters or less")
+              .optional(),
+          }),
+        )
+        .min(1, "At least one image is required")
+        .max(5, "Maximum 5 images allowed per task"),
+    })
+    .strict(),
+});
+
+const updateTaskImagesSchema = z.object({
+  params: z.object({
+    taskId: z.string().min(1, "Task ID is required"),
+  }),
+  body: z
+    .object({
+      keepImageIds: z
+        .array(z.string().min(1, "Image ID cannot be empty"))
+        .default([]),
+      newImages: z
+        .array(
+          z.object({
+            url: z
+              .url("Invalid URL format")
+              .max(500, "URL must be 500 characters or less"),
+            altText: z
+              .string()
+              .max(255, "Alt text must be 255 characters or less")
+              .optional(),
+          }),
+        )
+        .default([]),
+    })
+    .strict()
+    .refine((data) => data.keepImageIds.length + data.newImages.length <= 5, {
+      message: "Total number of images cannot exceed 5",
+    }),
+});
+
+const deleteTaskImageSchema = z.object({
+  params: z.object({
+    taskId: z.string().min(1, "Task ID is required"),
+    imageId: z.string().min(1, "Image ID is required"),
+  }),
+});
+
 // exports
 
-export { createTaskSchema, getAllTasksSchema, updateTaskSchema };
+export {
+  addTaskImagesSchema,
+  createTaskSchema,
+  deleteTaskImageSchema,
+  getAllMyTasksSchema,
+  getAllTasksSchema,
+  getMyPostedTaskSchema,
+  updateTaskImagesSchema,
+  updateTaskSchema
+};
+

@@ -1,22 +1,33 @@
 import { UserRole } from "@prisma/client";
 import { Router } from "express";
-import { auth } from "../../middlewares/authMiddleware";
+import { auth, optionalAuth } from "../../middlewares/authMiddleware";
 import { authorize } from "../../middlewares/authorizeMiddleware";
 import validateRequest from "../../middlewares/validateRequest";
 import {
+  addTaskImagesController,
   approveTaskCompletionController,
   createTaskController,
   deleteTaskController,
+  deleteTaskImageController,
+  getAllMyTasksController,
+  getMyPostedTaskController,
+  getRecentlyPostedTasksController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
   markTaskCompletedController,
   requestTaskRevisionController,
   updateTaskController,
+  updateTaskImagesController,
 } from "./task.controller";
 import {
+  addTaskImagesSchema,
   createTaskSchema,
+  deleteTaskImageSchema,
+  getAllMyTasksSchema,
   getAllTasksSchema,
+  getMyPostedTaskSchema,
+  updateTaskImagesSchema,
   updateTaskSchema,
 } from "./task.validator";
 
@@ -42,6 +53,33 @@ router.delete(
   auth,
   authorize([UserRole.USER]),
   deleteTaskController,
+);
+
+// add images to task
+router.post(
+  "/:taskId/image",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(addTaskImagesSchema),
+  addTaskImagesController,
+);
+
+// update images of a task
+router.patch(
+  "/:taskId/image",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(updateTaskImagesSchema),
+  updateTaskImagesController,
+);
+
+// delete a single image from a task
+router.delete(
+  "/:taskId/image/:imageId",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(deleteTaskImageSchema),
+  deleteTaskImageController,
 );
 
 //task completion routes
@@ -76,8 +114,32 @@ router.patch(
   requestTaskRevisionController,
 );
 
+// Get all tasks posted by the current user
+router.get(
+  "/my-posted-tasks",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(getAllMyTasksSchema),
+  getAllMyTasksController,
+);
+
+// Get specific task posted by the current user
+router.get(
+  "/my-posted-task/:taskId",
+  auth,
+  authorize([UserRole.USER]),
+  validateRequest(getMyPostedTaskSchema),
+  getMyPostedTaskController,
+);
+
 // public routes
-router.get("/all-task", validateRequest(getAllTasksSchema), getTasksController);
+router.get(
+  "/all-task",
+  optionalAuth,
+  validateRequest(getAllTasksSchema),
+  getTasksController,
+);
+router.get("/recently-posted", optionalAuth, getRecentlyPostedTasksController);
 router.get("/:id", getTaskByIdController);
 
 // Export the router to be used in the main application

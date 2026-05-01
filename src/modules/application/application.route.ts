@@ -14,6 +14,8 @@ import {
 } from "./application.controller";
 import {
   createApplicationSchema,
+  getAllApplicationsForTaskSchema,
+  getAllMyApplicationsSchema,
   rejectApplicationSchema,
   withdrawApplicationSchema,
 } from "./application.validation";
@@ -25,7 +27,7 @@ router.post(
   auth,
   authorize([UserRole.USER]),
   validateRequest(createApplicationSchema),
-  createApplicationController
+  createApplicationController,
 );
 
 // get all my application
@@ -33,7 +35,8 @@ router.get(
   "/my-applications",
   auth,
   authorize([UserRole.USER]),
-  getAllMyApplicationsController
+  validateRequest(getAllMyApplicationsSchema),
+  getAllMyApplicationsController,
 );
 
 // get all application for a task
@@ -41,7 +44,8 @@ router.get(
   "/task/:taskId",
   auth,
   authorize([UserRole.USER]),
-  getAllApplicationsForTaskController
+  validateRequest(getAllApplicationsForTaskSchema),
+  getAllApplicationsForTaskController,
 );
 
 // get application by id
@@ -49,7 +53,7 @@ router.get(
   "/:applicationId",
   auth,
   authorize([UserRole.USER]),
-  getApplicationByIdController
+  getApplicationByIdController,
 );
 
 // update application status (for task owner)
@@ -58,7 +62,7 @@ router.patch(
   "/approve/:applicationId",
   auth,
   authorize([UserRole.USER]),
-  approveApplicationController
+  approveApplicationController,
 );
 // reject application
 router.patch(
@@ -66,7 +70,7 @@ router.patch(
   auth,
   authorize([UserRole.USER]),
   validateRequest(rejectApplicationSchema),
-  rejectApplicationController
+  rejectApplicationController,
 );
 
 // withdraw application (for applicant)
@@ -75,7 +79,7 @@ router.patch(
   auth,
   authorize([UserRole.USER]),
   validateRequest(withdrawApplicationSchema),
-  withdrawApplicationController
+  withdrawApplicationController,
 );
 
 export default router;

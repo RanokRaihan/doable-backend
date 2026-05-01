@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import { AppError, asyncHandler, sendResponse } from "../../utils";
+import { parseQuery } from "../../utils/query";
 import {
   approveApplicationService,
   createApplicationService,
@@ -26,16 +27,16 @@ const createApplicationController: RequestHandler = asyncHandler(
     const application = await createApplicationService(
       userId,
       taskId,
-      applicationData
+      applicationData,
     );
 
     return sendResponse(
       res,
       200,
       "Application created successfully",
-      application
+      application,
     );
-  }
+  },
 );
 
 // getAllMyApplicationsController
@@ -46,15 +47,20 @@ const getAllMyApplicationsController: RequestHandler = asyncHandler(
       throw new AppError(401, "Unauthorized");
     }
 
-    const applications = await getAllMyApplicationsService(userId);
+    const parsedQuery = parseQuery(req, { maxLimit: 50, defaultLimit: 10 });
+    const { data, meta } = await getAllMyApplicationsService(
+      userId,
+      parsedQuery,
+    );
 
     return sendResponse(
       res,
       200,
       "Fetched all applications successfully",
-      applications
+      data,
+      meta,
     );
-  }
+  },
 );
 
 const getAllApplicationsForTaskController: RequestHandler = asyncHandler(
@@ -68,15 +74,21 @@ const getAllApplicationsForTaskController: RequestHandler = asyncHandler(
       throw new AppError(400, "Task ID is required");
     }
 
-    const applications = await getAllApplicationsForTaskService(taskId, userId);
+    const parsedQuery = parseQuery(req, { maxLimit: 50, defaultLimit: 10 });
+    const { data, meta } = await getAllApplicationsForTaskService(
+      taskId,
+      userId,
+      parsedQuery,
+    );
 
     return sendResponse(
       res,
       200,
       "Fetched all applications for task successfully",
-      applications
+      data,
+      meta,
     );
-  }
+  },
 );
 
 // getApplicationByIdController
@@ -97,9 +109,9 @@ const getApplicationByIdController: RequestHandler = asyncHandler(
       res,
       200,
       "Fetched application successfully",
-      application
+      application,
     );
-  }
+  },
 );
 
 // approveApplicationController
@@ -117,16 +129,16 @@ const approveApplicationController: RequestHandler = asyncHandler(
 
     const updatedApplication = await approveApplicationService(
       applicationId,
-      userId
+      userId,
     );
 
     return sendResponse(
       res,
       200,
       "Application approved successfully",
-      updatedApplication
+      updatedApplication,
     );
-  }
+  },
 );
 
 // rejectApplicationController
@@ -146,16 +158,16 @@ const rejectApplicationController: RequestHandler = asyncHandler(
     const updatedApplication = await rejectApplicationService(
       applicationId,
       userId,
-      rejectionReason
+      rejectionReason,
     );
 
     return sendResponse(
       res,
       200,
       "Application rejected !!",
-      updatedApplication
+      updatedApplication,
     );
-  }
+  },
 );
 
 // withdrawApplicationController
@@ -175,11 +187,11 @@ const withdrawApplicationController: RequestHandler = asyncHandler(
     const result = await withdrawApplicationService(
       applicationId,
       userId,
-      withdrawalReason
+      withdrawalReason,
     );
 
     return sendResponse(res, 200, "Application withdrawn successfully", result);
-  }
+  },
 );
 
 export {

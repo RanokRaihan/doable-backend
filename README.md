@@ -1,6 +1,6 @@
-# Get It Done - Backend API
+# Doable - Backend API
 
-A modern, scalable backend API for the **Get It Done** task management platform built with **Node.js**, **TypeScript**, **Express**, and **Prisma**.
+A modern, scalable backend API for the **Doable** task management platform built with **Node.js**, **TypeScript**, **Express**, and **Prisma**.
 
 ![Node.js](https://img.shields.io/badge/Node.js-18.x-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
@@ -21,7 +21,7 @@ A modern, scalable backend API for the **Get It Done** task management platform 
 
 ## Overview
 
-**Get It Done** is a task management marketplace that connects users who need tasks completed with skilled individuals who can help. The backend provides robust APIs for authentication, task management, applications, payments, and wallet operations.
+**Doable** is a task management marketplace that connects users who need tasks completed with skilled individuals who can help. The backend provides robust APIs for authentication, task management, applications, payments, and wallet operations.
 
 ## Features
 
@@ -62,8 +62,8 @@ A modern, scalable backend API for the **Get It Done** task management platform 
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/RanokRaihan/get-it-done-backend.git
-   cd get-it-done-backend
+   git clone https://github.com/RanokRaihan/Doable-backend.git
+   cd Doable-backend
    ```
 
 2. **Install dependencies**
@@ -338,4 +338,4 @@ The API uses custom error codes:
 
 ---
 
-**Built with ❤️ for Get It Done**
+**Built with ❤️ for Doable**

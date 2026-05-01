@@ -5,8 +5,13 @@ import config from "../../config";
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
 import { createTnxId } from "../../utils/createTnxId";
+import {
+  paymentFilterableFields,
+  paymentSortableFields,
+} from "./payment.constant";
 import { IpnQuery, PaymentPayload } from "./payment.interface";
 import { getDefaultDescription } from "./payment.utils";
+import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
 const commissionRate = config.commissionRate;
 
 const cashPaymentInitService = async (userId: string, taskId: string) => {
@@ -27,7 +32,7 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
     if (task.postedById !== userId) {
       throw new AppError(
         403,
-        "You are not authorized to make payment for this task!"
+        "You are not authorized to make payment for this task!",
       );
     }
 
@@ -46,7 +51,7 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Cash payment already initiated for this task!",
         "DUPLICATE_PAYMENT",
-        "payment"
+        "payment",
       );
     }
 
@@ -55,7 +60,7 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
 
     // Block if online payment is COMPLETED
     const completedOnlinePayment = onlinePayments.find(
-      (p) => p.status === "COMPLETED"
+      (p) => p.status === "COMPLETED",
     );
 
     if (completedOnlinePayment) {
@@ -63,13 +68,13 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Online payment already completed for this task!",
         "DUPLICATE_PAYMENT",
-        "payment"
+        "payment",
       );
     }
 
     // Block if online payment is PENDING and not expired
     const pendingOnlinePayment = onlinePayments.find(
-      (p) => p.status === "PENDING"
+      (p) => p.status === "PENDING",
     );
 
     if (pendingOnlinePayment) {
@@ -81,7 +86,7 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
           400,
           "You have a pending online payment. Please complete or wait for it to expire before using cash payment.",
           "PENDING_ONLINE_PAYMENT",
-          "payment"
+          "payment",
         );
       }
 
@@ -329,7 +334,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         403,
         "You are not authorized to make payment for this task!",
         "FORBIDDEN",
-        "payment"
+        "payment",
       );
     }
 
@@ -338,7 +343,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Task is not approved for payment processing!",
         "INVALID_TASK_STATUS",
-        "task"
+        "task",
       );
     }
 
@@ -347,7 +352,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         400,
         "No approved application found for this task!",
         "NO_APPROVED_APPLICATION",
-        "task"
+        "task",
       );
     }
     // 2.1 Fetch existing cash payments for the task
@@ -358,7 +363,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Cash payment already initiated for this task!",
         "DUPLICATE_PAYMENT",
-        "payment"
+        "payment",
       );
     }
 
@@ -367,7 +372,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
 
     // Handle existing COMPLETED payment
     const completedPayment = onlinePayments.find(
-      (p) => p.status === "COMPLETED"
+      (p) => p.status === "COMPLETED",
     );
 
     if (completedPayment) {
@@ -375,7 +380,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         400,
         "Payment already completed for this task!",
         "DUPLICATE_PAYMENT",
-        "payment"
+        "payment",
       );
     }
 
@@ -510,7 +515,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         500,
         "Failed to initialize payment gateway",
         "GATEWAY_INIT_FAILED",
-        "payment"
+        "payment",
       );
     }
 
@@ -551,7 +556,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
       500,
       "Failed to initiate online payment",
       "PAYMENT_INIT_FAILED",
-      "payment"
+      "payment",
     );
   }
 };
@@ -578,7 +583,7 @@ const validateOnlinePaymentService = async (payload: IpnQuery) => {
         400,
         "Payment validation failed",
         "PAYMENT_VALIDATION_FAILED",
-        "ipn"
+        "ipn",
       );
     }
     const paymentRecord = await prisma.payment.findFirst({
@@ -673,6 +678,7 @@ const validateOnlinePaymentService = async (payload: IpnQuery) => {
           transactionId: true,
           amount: true,
           method: true,
+          sessionToken: true,
         },
       });
       await tx.task.update({
@@ -690,11 +696,22 @@ const validateOnlinePaymentService = async (payload: IpnQuery) => {
 };
 
 // get all payment made by user
-const getAllPaymentMadeService = async (userId: string) => {
+const getAllPaymentMadeService = async (
+  userId: string,
+  parsedQuery: ParsedQuery,
+) => {
   try {
-    const paymentsMade = await prisma.payment.findMany({
-      where: { payerId: userId },
-      orderBy: { createdAt: "desc" },
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      sortFields: paymentSortableFields,
+      filterFields: paymentFilterableFields,
+    });
+
+    const mergedWhere = { ...where, payerId: userId };
+
+    const queryOptions: Parameters<typeof prisma.payment.findMany>[0] = {
+      where: mergedWhere,
+      skip,
+      take,
       select: {
         id: true,
         transactionId: true,
@@ -704,20 +721,22 @@ const getAllPaymentMadeService = async (userId: string) => {
         cashStatus: true,
         paidAt: true,
         createdAt: true,
-        payee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        payee: { select: { id: true, name: true, email: true } },
         taskId: true,
       },
-    });
-    if (!paymentsMade || paymentsMade.length === 0) {
-      throw new AppError(404, "No payments made found");
+    };
+
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
     }
-    return paymentsMade;
+
+    const [paymentsMade, totalCount] = await Promise.all([
+      prisma.payment.findMany(queryOptions),
+      prisma.payment.count({ where: mergedWhere }),
+    ]);
+
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: paymentsMade, meta };
   } catch (error) {
     console.error("Error in getAllPaymentMadeService:", error);
     throw error;
@@ -725,11 +744,22 @@ const getAllPaymentMadeService = async (userId: string) => {
 };
 
 // get all payment received by user
-const getAllPaymentReceivedService = async (userId: string) => {
+const getAllPaymentReceivedService = async (
+  userId: string,
+  parsedQuery: ParsedQuery,
+) => {
   try {
-    const paymentsReceived = await prisma.payment.findMany({
-      where: { payeeId: userId, status: "COMPLETED" },
-      orderBy: { createdAt: "desc" },
+    const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
+      sortFields: paymentSortableFields,
+      filterFields: paymentFilterableFields,
+    });
+
+    const mergedWhere = { ...where, payeeId: userId };
+
+    const queryOptions: Parameters<typeof prisma.payment.findMany>[0] = {
+      where: mergedWhere,
+      skip,
+      take,
       select: {
         id: true,
         transactionId: true,
@@ -738,23 +768,25 @@ const getAllPaymentReceivedService = async (userId: string) => {
         status: true,
         cashStatus: true,
         paidAt: true,
-        payer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        payer: { select: { id: true, name: true, email: true } },
         commissionAmount: true,
         commissionDeducted: true,
         createdAt: true,
         taskId: true,
       },
-    });
-    if (!paymentsReceived || paymentsReceived.length === 0) {
-      throw new AppError(404, "No received payments found");
+    };
+
+    if (orderBy) {
+      queryOptions.orderBy = orderBy;
     }
-    return paymentsReceived;
+
+    const [paymentsReceived, totalCount] = await Promise.all([
+      prisma.payment.findMany(queryOptions),
+      prisma.payment.count({ where: mergedWhere }),
+    ]);
+
+    const meta = buildMeta(totalCount, parsedQuery.pagination);
+    return { data: paymentsReceived, meta };
   } catch (error) {
     console.error("Error in getAllPaymentReceivedService:", error);
     throw error;
@@ -817,6 +849,98 @@ const getPaymentByIdService = async (paymentId: string, userId: string) => {
     throw error;
   }
 };
+const getPaymentBySessionTokenService = async (
+  sessionToken: string,
+  userId: string,
+) => {
+  const payment = await prisma.payment.findFirst({
+    where: {
+      sessionToken,
+      payerId: userId,
+    },
+    select: {
+      id: true,
+      transactionId: true,
+      amount: true,
+      method: true,
+      status: true,
+      sessionToken: true,
+      sessionExpiresAt: true,
+      paidAt: true,
+      failedAt: true,
+      failureReason: true,
+      createdAt: true,
+      task: {
+        select: {
+          id: true,
+          title: true,
+          category: true,
+          location: true,
+          status: true,
+        },
+      },
+      payer: { select: { id: true, name: true, email: true } },
+      payee: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  if (!payment) {
+    throw new AppError(404, "Payment not found", "NOT_FOUND", "payment");
+  }
+
+  return payment;
+};
+
+const paymentFailService = async (data: IpnQuery) => {
+  const payment = await prisma.payment.findFirst({
+    where: { transactionId: data.tran_id },
+    select: { id: true, status: true },
+  });
+
+  if (!payment) {
+    throw new AppError(404, "Payment record not found", "NOT_FOUND", "payment");
+  }
+
+  if (payment.status === "COMPLETED") {
+    return payment;
+  }
+
+  return prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: "FAILED",
+      failedAt: new Date(),
+      failureReason: data.error ?? "Payment failed",
+      gatewayResponse: data as object,
+    },
+    select: { id: true, transactionId: true, status: true, failedAt: true },
+  });
+};
+
+const paymentCancelService = async (data: IpnQuery) => {
+  const payment = await prisma.payment.findFirst({
+    where: { transactionId: data.tran_id },
+    select: { id: true, status: true },
+  });
+
+  if (!payment) {
+    throw new AppError(404, "Payment record not found", "NOT_FOUND", "payment");
+  }
+
+  if (payment.status === "COMPLETED") {
+    return payment;
+  }
+
+  return prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: "CANCELLED",
+      gatewayResponse: data as object,
+    },
+    select: { id: true, transactionId: true, status: true },
+  });
+};
+
 export {
   cashPaymentConfirmService,
   cashPaymentDeclineService,
@@ -824,6 +948,9 @@ export {
   getAllPaymentMadeService,
   getAllPaymentReceivedService,
   getPaymentByIdService,
+  getPaymentBySessionTokenService,
   onlinePaymentInitService,
+  paymentCancelService,
+  paymentFailService,
   validateOnlinePaymentService,
 };
