@@ -22,7 +22,24 @@ const createApplicationService = async (
     const task = await prisma.task.findUnique({
       where: { id: taskId, isDeleted: false },
     });
-
+    const user = await prisma.user.findUnique({
+      where: { id: userId, isDeleted: false },
+    });
+    if (!user || !user.id) {
+      throw new AppError(404, "User not found");
+    }
+    if (!user.emailVerified) {
+      throw new AppError(
+        403,
+        "Please verify your email before applying to tasks",
+      );
+    }
+    if (user.profileStatus !== "COMPLETE") {
+      throw new AppError(
+        403,
+        "Please complete your profile before applying to tasks",
+      );
+    }
     if (!task) {
       throw new AppError(404, "Task not found");
     }
