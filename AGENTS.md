@@ -1,4 +1,4 @@
-# AGENTS.md — Get It Done Backend
+# AGENTS.md — Doable Backend
 
 ## Recent Changes
 

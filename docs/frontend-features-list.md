@@ -1,6 +1,6 @@
-# Frontend Features & Pages Required for Get-It-Done Platform
+# Frontend Features & Pages Required for Doable Platform
 
-This document outlines all the frontend pages and features needed to fully interact with the Get-It-Done backend API. The platform is a task management/gig economy system where users can post tasks, apply to work on tasks, and manage payments.
+This document outlines all the frontend pages and features needed to fully interact with the Doable backend API. The platform is a task management/gig economy system where users can post tasks, apply to work on tasks, and manage payments.
 
 ## 1. Landing & Marketing Pages
 
@@ -349,4 +349,4 @@ All pages and features should be fully responsive and optimized for:
 
 ---
 
-_This feature list is based on the analysis of the Get-It-Done backend API endpoints and database schema. Each feature should be implemented following modern UX/UI best practices and accessibility guidelines._
+_This feature list is based on the analysis of the Doable backend API endpoints and database schema. Each feature should be implemented following modern UX/UI best practices and accessibility guidelines._

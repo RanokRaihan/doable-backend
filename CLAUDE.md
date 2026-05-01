@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**Get It Done** is a Node.js/TypeScript REST API for a task marketplace — users post tasks, others apply, and the platform handles payment and wallet/commission settlement. Stack: Express 5, Prisma 6 (PostgreSQL), Zod 4, JWT (access + refresh tokens), bcryptjs, Nodemailer, SSLCommerz. No test runner is configured. See `AGENTS.md` for the module map and file locations. See `api-contracts/index.md` for all endpoint contracts, shared types, and auth patterns.
+**Doable** is a Node.js/TypeScript REST API for a task marketplace — users post tasks, others apply, and the platform handles payment and wallet/commission settlement. Stack: Express 5, Prisma 6 (PostgreSQL), Zod 4, JWT (access + refresh tokens), bcryptjs, Nodemailer, SSLCommerz. No test runner is configured. See `AGENTS.md` for the module map and file locations. See `api-contracts/index.md` for all endpoint contracts, shared types, and auth patterns.
 
 ---
 
