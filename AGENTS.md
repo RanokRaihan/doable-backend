@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-05-02 — Confirmed enum sync after schema update: `PAYMENT_PROCESSING` fully removed from `TaskStatus`; `CLOSED` added to `ApplicationStatus`; all generated files, service logic, and api-contracts verified consistent
 - 2026-05-01 — Updated `TaskStatus` enum: replaced `PAYMENT_PROCESSING` with `PAYMENT_PENDING` + `PAYMENT_INITIATED`; updated status machine in AGENTS.md and api-contract-task.md; added `CLOSED` to `ApplicationStatus` in api-contract-application.md
 - 2026-04-27 — Split `api-contract.md` into `api-contracts/` (shared.md + one file per module); updated all references in AGENTS.md and CLAUDE.md; removed demo route section
 - 2026-04-27 — Full rewrite of AGENTS.md and CLAUDE.md; created `.github/copilot-instructions.md`; removed boilerplate and duplicate content; fixed all route tables; added Architectural Decisions section

@@ -7,7 +7,8 @@ import { AppError } from "../../utils";
 import { createTnxId } from "../../utils/createTnxId";
 import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
 import {
-  paymentFilterableFields,
+  paymentMadeFilterableFields,
+  paymentReceivedFilterableFields,
   paymentSortableFields,
 } from "./payment.constant";
 import { IpnQuery, PaymentPayload } from "./payment.interface";
@@ -741,7 +742,7 @@ const getAllPaymentMadeService = async (
   try {
     const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
       sortFields: paymentSortableFields,
-      filterFields: paymentFilterableFields,
+      filterFields: paymentMadeFilterableFields,
     });
 
     const mergedWhere = { ...where, payerId: userId };
@@ -789,10 +790,10 @@ const getAllPaymentReceivedService = async (
   try {
     const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
       sortFields: paymentSortableFields,
-      filterFields: paymentFilterableFields,
+      filterFields: paymentReceivedFilterableFields,
     });
 
-    const mergedWhere = { ...where, payeeId: userId };
+    const mergedWhere = { ...where, payeeId: userId, status: "COMPLETED" };
 
     const queryOptions: Parameters<typeof prisma.payment.findMany>[0] = {
       where: mergedWhere,
