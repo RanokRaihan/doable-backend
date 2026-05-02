@@ -314,9 +314,9 @@ const getApplicationByIdService = async (
       );
     }
 
-    // If task status is PAYMENT_PROCESSING and application is APPROVED, include payment information
+    // If task status is PAYMENT_INITIATED and application is APPROVED, include payment information
     if (
-      application.task.status === "PAYMENT_PROCESSING" &&
+      application.task.status === "PAYMENT_INITIATED" &&
       application.status === "APPROVED"
     ) {
       const applicationWithPayment = await prisma.application.findUnique({
@@ -421,7 +421,7 @@ const approveApplicationService = async (
         data: {
           rejectionReason:
             "Your application is no longer under consideration! thank you for applying.",
-          status: "REJECTED",
+          status: "CLOSED",
         },
       });
 

@@ -1,17 +1,17 @@
-import { WalletTransactionCategory } from "../../generated/prisma/enums";
 import axios from "axios";
 import crypto from "crypto";
 import config from "../../config";
 import { prisma } from "../../config/database";
+import { WalletTransactionCategory } from "../../generated/prisma/enums";
 import { AppError } from "../../utils";
 import { createTnxId } from "../../utils/createTnxId";
+import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
 import {
   paymentFilterableFields,
   paymentSortableFields,
 } from "./payment.constant";
 import { IpnQuery, PaymentPayload } from "./payment.interface";
 import { getDefaultDescription } from "./payment.utils";
-import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
 const commissionRate = config.commissionRate;
 
 const cashPaymentInitService = async (userId: string, taskId: string) => {
@@ -36,7 +36,7 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
       );
     }
 
-    if (task.status !== "PAYMENT_PROCESSING") {
+    if (task.status !== "PAYMENT_PENDING") {
       throw new AppError(400, "Task is not approved for payment processing!");
     }
 
@@ -60,13 +60,13 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
 
     // Block if online payment is COMPLETED
     const completedOnlinePayment = onlinePayments.find(
-      (p) => p.status === "COMPLETED",
+      (p) => p.status === "COMPLETED" || p.status === "REFUNDED",
     );
 
     if (completedOnlinePayment) {
       throw new AppError(
         400,
-        "Online payment already completed for this task!",
+        "Online payment already completed, refunded, or pending for this task!",
         "DUPLICATE_PAYMENT",
         "payment",
       );
@@ -120,16 +120,23 @@ const cashPaymentInitService = async (userId: string, taskId: string) => {
       commissionRate,
       commissionAmount,
     };
-    const payment = await prisma.payment.create({
-      data: paymentPayload,
-      select: {
-        id: true,
-        transactionId: true,
-        amount: true,
-        method: true,
-        status: true,
-        cashStatus: true,
-      },
+    const payment = await prisma.$transaction(async (tx) => {
+      const createdPayment = await tx.payment.create({
+        data: paymentPayload,
+        select: {
+          id: true,
+          transactionId: true,
+          amount: true,
+          method: true,
+          status: true,
+          cashStatus: true,
+        },
+      });
+      await tx.task.update({
+        where: { id: taskId },
+        data: { status: "PAYMENT_INITIATED" },
+      });
+      return createdPayment;
     });
     return payment;
   } catch (error) {
@@ -301,6 +308,7 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
       where: { id: taskId, isDeleted: false },
       include: {
         payments: true,
+
         approvedApplication: {
           include: {
             applicant: {
@@ -337,8 +345,15 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
         "payment",
       );
     }
-
-    if (task.status !== "PAYMENT_PROCESSING") {
+    if (!task.approvedApplication?.applicantId) {
+      throw new AppError(
+        400,
+        "No approved application found for this task!",
+        "NO_APPROVED_APPLICATION",
+        "task",
+      );
+    }
+    if (task.status !== "PAYMENT_PENDING") {
       throw new AppError(
         400,
         "Task is not approved for payment processing!",
@@ -372,13 +387,13 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
 
     // Handle existing COMPLETED payment
     const completedPayment = onlinePayments.find(
-      (p) => p.status === "COMPLETED",
+      (p) => p.status === "COMPLETED" || p.status === "REFUNDED",
     );
 
     if (completedPayment) {
       throw new AppError(
         400,
-        "Payment already completed for this task!",
+        "Payment already completed or refunded for this task!",
         "DUPLICATE_PAYMENT",
         "payment",
       );
@@ -432,22 +447,34 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
     const sessionExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
     // 4. Create Payment record BEFORE calling gateway
-    const payment = await prisma.payment.create({
-      data: {
-        transactionId,
-        sessionToken,
-        taskId,
-        payerId: userId,
-        payeeId: task.approvedApplication.applicantId,
-        amount,
-        method: "ONLINE",
-        commissionRate,
-        commissionAmount,
-        sessionExpiresAt,
-        metadata: {
-          initiatedAt: new Date().toISOString(),
+    const payment = await prisma.$transaction(async (tx) => {
+      const createdPayment = await tx.payment.create({
+        data: {
+          transactionId,
+          sessionToken,
+          taskId,
+          payerId: userId,
+          payeeId: task.approvedApplication!.applicantId,
+          amount,
+          method: "ONLINE",
+          commissionRate,
+          commissionAmount,
+          sessionExpiresAt,
+          metadata: {
+            initiatedAt: new Date().toISOString(),
+          },
         },
-      },
+      });
+
+      // Update task status to PAYMENT_INITIATED
+      await tx.task.update({
+        where: { id: taskId },
+        data: {
+          status: "PAYMENT_INITIATED",
+        },
+      });
+
+      return createdPayment;
     });
 
     // 5. Prepare SSLCommerz data
@@ -519,23 +546,34 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
       );
     }
 
-    // 8. Update payment with gateway response
-    const updatedPayment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        gatewayTransactionId: response.data.sessionkey || null,
-        gatewayResponse: response.data,
-      },
-      select: {
-        id: true,
-        transactionId: true,
-        sessionToken: true,
-        amount: true,
-        method: true,
-        status: true,
-        sessionExpiresAt: true,
-        gatewayResponse: true,
-      },
+    // 8. Update payment with gateway response and update task status
+    const updatedPayment = await prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          gatewayTransactionId: response.data.sessionkey || null,
+          gatewayResponse: response.data,
+        },
+        select: {
+          id: true,
+          transactionId: true,
+          sessionToken: true,
+          amount: true,
+          method: true,
+          status: true,
+          sessionExpiresAt: true,
+          gatewayResponse: true,
+        },
+      });
+
+      await tx.task.update({
+        where: { id: task.id },
+        data: {
+          status: "PAYMENT_PENDING",
+        },
+      });
+
+      return updated;
     });
 
     // 9. Return payment details and redirect URL

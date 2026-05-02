@@ -316,7 +316,7 @@ const forgotPasswordService = async (email: string) => {
       .header h1 { margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.025em; }
       .content { padding: 32px; color: #3f3f46; line-height: 1.6; font-size: 16px; }
       .button-container { text-align: center; margin: 32px 0; }
-      .button { background-color: #09090b; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block; transition: background-color 0.2s; }
+      .button { background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block; transition: background-color 0.2s; }
       .footer { padding: 24px; text-align: center; font-size: 14px; color: #71717a; background-color: #fafafa; border-top: 1px solid #e4e4e7; }
     `;
 
@@ -337,7 +337,7 @@ const forgotPasswordService = async (email: string) => {
                 <p>We recently received a request to reset the password for an account associated with this email address.</p>
                 <p>However, we couldn't find an existing Doable account registered with this email. If you'd like to join the platform, you can create a new account below.</p>
                 <div class="button-container">
-                  <a href="${config.frontendUrl}/register" class="button">Create an Account</a>
+                  <a href="${config.frontendUrl}/register" class="button" style="background-color:#2563eb;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:500;display:inline-block;">Create an Account</a>
                 </div>
                 <p>If you didn't make this request, you can safely ignore this email.</p>
               </div>
@@ -367,7 +367,7 @@ const forgotPasswordService = async (email: string) => {
                 <p>You recently requested a password reset for your Doable account. However, this email is associated with a Google login rather than a standard password.</p>
                 <p>To access your account, please return to the login page and continue with Google.</p>
                 <div class="button-container">
-                  <a href="${config.frontendUrl}/login" class="button">Log In with Google</a>
+                  <a href="${config.frontendUrl}/login" class="button" style="background-color:#2563eb;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:500;display:inline-block;">Log In with Google</a>
                 </div>
                 <p>If you didn't make this request, please ensure your Google account is secure.</p>
               </div>
@@ -409,7 +409,7 @@ const forgotPasswordService = async (email: string) => {
               <p>Hello,</p>
               <p>We received a request to reset the password for your Doable account. You can reset it by clicking the button below:</p>
               <div class="button-container">
-                <a href="${config.frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}" class="button">Reset Password</a>
+                <a href="${config.frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}" class="button" style="background-color:#2563eb;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:500;display:inline-block;">Reset Password</a>
               </div>
               <p><strong>Note:</strong> This link will expire in 15 minutes for your security.</p>
               <p>If you did not request a password reset, no further action is required and your password will remain the same.</p>
@@ -634,15 +634,44 @@ const sendVerificationEmailService = async (email: string) => {
         emailVerificationExpiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour expiry
       },
     });
+    const emailStyle = `
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 40px 0; }
+      .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+      .header { background-color: #09090b; padding: 24px; text-align: center; }
+      .header h1 { margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.025em; }
+      .content { padding: 32px; color: #3f3f46; line-height: 1.6; font-size: 16px; }
+      .button-container { text-align: center; margin: 32px 0; }
+      .button { background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block; transition: background-color 0.2s; }
+      .expiry-notice { background-color: #f4f4f5; border-left: 3px solid #09090b; padding: 12px 16px; border-radius: 4px; font-size: 14px; color: #52525b; margin: 24px 0; }
+      .footer { padding: 24px; text-align: center; font-size: 14px; color: #71717a; background-color: #fafafa; border-top: 1px solid #e4e4e7; }
+    `;
+
     // Send verification email
     await sendEmail({
       to: user.email,
-      subject: "Email Verification",
+      subject: "Verify Your Email Address - Doable",
       html: `
-        <p>Please verify your email by clicking the link below:</p>
-        <a href="${config.frontendUrl}/verify-email?token=${verificationToken}">Verify Email</a>
-        <p>This link will expire in 1 hour.</p>
-        <p>If you did not create an account, please ignore this email.</p>
+        <!DOCTYPE html>
+        <html>
+        <head><style>${emailStyle}</style></head>
+        <body>
+          <div class="container">
+            <div class="header"><h1>Doable</h1></div>
+            <div class="content">
+              <p>Hello${user.name ? `, ${user.name}` : ""},</p>
+              <p>Thanks for signing up! To get started, we just need to verify your email address. Click the button below to confirm it's really you.</p>
+              <div class="button-container">
+                <a href="${config.frontendUrl}/verify-email?token=${verificationToken}" class="button" style="background-color:#2563eb;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:500;display:inline-block;">Verify Email Address</a>
+              </div>
+              <div class="expiry-notice">
+                <strong>Note:</strong> This link will expire in <strong>1 hour</strong>. If it expires, you can request a new one from your account settings.
+              </div>
+              <p>If you didn't create a Doable account, you can safely ignore this email — no account will be activated without verification.</p>
+            </div>
+            <div class="footer">&copy; ${new Date().getFullYear()} Doable. All rights reserved.</div>
+          </div>
+        </body>
+        </html>
       `,
     });
     if (config.nodeEnv === "development") {

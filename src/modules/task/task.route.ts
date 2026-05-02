@@ -1,5 +1,5 @@
-import { UserRole } from "../../generated/prisma/enums";
 import { Router } from "express";
+import { UserRole } from "../../generated/prisma/enums";
 import { auth, optionalAuth } from "../../middlewares/authMiddleware";
 import { authorize } from "../../middlewares/authorizeMiddleware";
 import validateRequest from "../../middlewares/validateRequest";
@@ -140,7 +140,7 @@ router.get(
   getTasksController,
 );
 router.get("/recently-posted", optionalAuth, getRecentlyPostedTasksController);
-router.get("/:id", getTaskByIdController);
+router.get("/:id", optionalAuth, getTaskByIdController);
 
 // Export the router to be used in the main application
 export default router;

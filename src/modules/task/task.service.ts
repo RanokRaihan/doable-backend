@@ -165,7 +165,7 @@ const getMyPostedTaskService = async (userId: string, taskId: string) => {
 };
 
 //get task by id
-const getTaskByIdService = async (taskId: string) => {
+const getTaskByIdService = async (taskId: string, userId?: string) => {
   try {
     const task = await prisma.task.findFirst({
       where: { id: taskId, isDeleted: false },
@@ -186,7 +186,17 @@ const getTaskByIdService = async (taskId: string) => {
     if (!task) {
       throw new AppError(404, "Task not found");
     }
-    return task;
+    let hasApplied = false;
+    if (task.postedById !== userId && userId) {
+      const application = await prisma.application.findFirst({
+        where: {
+          taskId,
+          applicantId: userId,
+        },
+      });
+      hasApplied = !!application;
+    }
+    return { ...task, hasApplied };
   } catch (error) {
     console.error("Error fetching task by ID:", error);
     throw error;
@@ -499,7 +509,10 @@ const approveTaskCompletionService = async (taskId: string, userId: string) => {
     if (!task) {
       throw new AppError(404, "Task not found");
     }
-    if (task.status === "PAYMENT_PROCESSING") {
+    if (
+      task.status === "PAYMENT_PENDING" ||
+      task.status === "PAYMENT_INITIATED"
+    ) {
       throw new AppError(
         400,
         "Task is already approved for payment processing!",
@@ -517,7 +530,7 @@ const approveTaskCompletionService = async (taskId: string, userId: string) => {
 
     await prisma.task.update({
       where: { id: taskId },
-      data: { status: "PAYMENT_PROCESSING" },
+      data: { status: "PAYMENT_PENDING" },
     });
   } catch (error) {
     console.error("Error approving task completion:", error);

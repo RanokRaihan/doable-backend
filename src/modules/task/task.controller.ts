@@ -49,8 +49,9 @@ const getTaskByIdController: RequestHandler = asyncHandler(async (req, res) => {
   if (!taskId) {
     throw new AppError(400, "Task ID is required");
   }
+  const user = req.user;
 
-  const result = await getTaskByIdService(taskId);
+  const result = await getTaskByIdService(taskId, user?.id);
   sendResponse(res, 200, "Task retrieved successfully!", result);
 });
 
@@ -236,7 +237,12 @@ const getRecentlyPostedTasksController: RequestHandler = asyncHandler(
   async (req, res) => {
     const user = req.user;
     const tasks = await getRecentlyPostedTasksService(user?.id);
-    sendResponse(res, 200, "Recently posted tasks retrieved successfully!", tasks);
+    sendResponse(
+      res,
+      200,
+      "Recently posted tasks retrieved successfully!",
+      tasks,
+    );
   },
 );
 
@@ -256,6 +262,5 @@ export {
   markTaskCompletedController,
   requestTaskRevisionController,
   updateTaskController,
-  updateTaskImagesController
+  updateTaskImagesController,
 };
-
