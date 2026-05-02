@@ -170,8 +170,16 @@ const getAllMyApplicationsService = async (
       prisma.application.count({ where: mergedWhere }),
     ]);
 
+    const processedApplications = (applications as any[]).map((app) => {
+      if (app.task.status === "OPEN" || app.status === "APPROVED") {
+        return app;
+      }
+      const { status: _taskStatus, ...taskWithoutStatus } = app.task;
+      return { ...app, task: taskWithoutStatus };
+    });
+
     const meta = buildMeta(totalCount, parsedQuery.pagination);
-    return { data: applications, meta };
+    return { data: processedApplications, meta };
   } catch (error) {
     console.error("Error fetching applications:", error);
     throw error;
@@ -347,6 +355,10 @@ const getApplicationByIdService = async (
       return applicationWithPayment;
     }
 
+    if (application.task.status !== "OPEN" && application.status !== "APPROVED") {
+      const { status: _taskStatus, ...taskWithoutStatus } = application.task;
+      return { ...application, task: taskWithoutStatus };
+    }
     return application;
   } catch (error) {
     console.error("Error fetching application by id:", error);
