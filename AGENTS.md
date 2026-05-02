@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-05-01 — Updated `TaskStatus` enum: replaced `PAYMENT_PROCESSING` with `PAYMENT_PENDING` + `PAYMENT_INITIATED`; updated status machine in AGENTS.md and api-contract-task.md; added `CLOSED` to `ApplicationStatus` in api-contract-application.md
 - 2026-04-27 — Split `api-contract.md` into `api-contracts/` (shared.md + one file per module); updated all references in AGENTS.md and CLAUDE.md; removed demo route section
 - 2026-04-27 — Full rewrite of AGENTS.md and CLAUDE.md; created `.github/copilot-instructions.md`; removed boilerplate and duplicate content; fixed all route tables; added Architectural Decisions section
 - 2026-04-27 — Restructured context files; fixed task/user route tables; added missing routes (`my-posted-tasks`, `recently-posted`, `email-verification`); added Architectural Decisions section; aligned routes with actual code
@@ -151,9 +152,9 @@ src/
 ### Task Status Machine
 
 ```
-DRAFT → OPEN → ASSIGNED → IN_PROGRESS → PENDING_REVIEW → PAYMENT_PROCESSING → COMPLETED
+DRAFT → OPEN → ASSIGNED → IN_PROGRESS → PENDING_REVIEW → PAYMENT_PENDING → PAYMENT_INITIATED → COMPLETED
                                                        ↘ (revision) → IN_PROGRESS
-                                                                              ↘ PAYMENT_FAILED
+                                                                 ↘ PAYMENT_FAILED / DISPUTED / CANCELLED / EXPIRED / REFUNDED
 ```
 
 ---

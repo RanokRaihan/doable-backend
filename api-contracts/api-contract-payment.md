@@ -91,7 +91,7 @@ interface Payment {
 
 #### `POST /cash/init/:taskId`
 
-No request body. Task must be in `PAYMENT_PROCESSING` status. Poster only.
+No request body. Task must be in `PAYMENT_PENDING` status. Poster only.
 
 Response `data` (status 201):
 
@@ -148,7 +148,7 @@ Response `data`: Updated payment record.
 
 #### `POST /online/init/:taskId`
 
-No request body. Task must be in `PAYMENT_PROCESSING`. Poster only.
+No request body. Task must be in `PAYMENT_PENDING`. Poster only.
 
 Response `data` (status 201):
 

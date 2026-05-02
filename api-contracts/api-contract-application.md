@@ -7,10 +7,12 @@
 ### `ApplicationStatus`
 
 ```ts
-type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
+type ApplicationStatus = "PENDING" | "APPROVED" | "CLOSED" | "REJECTED" | "WITHDRAWN";
 ```
 
 Used in: application object.
+
+- `CLOSED` — task was closed/cancelled before this application was acted on.
 
 ---
 
