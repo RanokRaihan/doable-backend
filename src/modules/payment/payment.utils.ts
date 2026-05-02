@@ -1,4 +1,4 @@
-import { WalletTransactionCategory } from "@prisma/client";
+import { WalletTransactionCategory } from "../../generated/prisma/enums";
 
 // Helper: Generate default description from category
 export function getDefaultDescription(

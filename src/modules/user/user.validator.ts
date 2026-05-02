@@ -1,4 +1,4 @@
-import { Gender } from "@prisma/client";
+import { Gender } from "../../generated/prisma/enums";
 import { z } from "zod";
 
 // Validation logic for user input

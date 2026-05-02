@@ -1,4 +1,4 @@
-import { TaskCategory, TaskPriority, TaskStatus } from "@prisma/client";
+import { TaskCategory, TaskPriority, TaskStatus } from "../../generated/prisma/enums";
 import { z } from "zod";
 import { taskSortableFields } from "./task.constant";
 

@@ -1,4 +1,4 @@
-import { UserProfileStatus } from "@prisma/client";
+import { UserProfileStatus } from "../../generated/prisma/enums";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";

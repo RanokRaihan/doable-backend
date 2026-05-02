@@ -1,4 +1,4 @@
-import { CashStatus, PaymentMethod } from "@prisma/client";
+import { CashStatus, PaymentMethod } from "../../generated/prisma/enums";
 
 export interface PaymentPayload {
   transactionId: string;

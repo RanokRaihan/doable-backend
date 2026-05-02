@@ -1,4 +1,4 @@
-import { WalletTransactionCategory } from "@prisma/client";
+import { WalletTransactionCategory } from "../../generated/prisma/enums";
 import axios from "axios";
 import crypto from "crypto";
 import config from "../../config";

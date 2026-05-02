@@ -1,4 +1,4 @@
-import { WalletTransactionCategory } from "@prisma/client";
+import { WalletTransactionCategory } from "../../generated/prisma/enums";
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils";
 import { createTnxId } from "../../utils/createTnxId";
