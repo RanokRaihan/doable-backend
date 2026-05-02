@@ -1,11 +1,11 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import "dotenv/config";
+import { PrismaClient } from "../generated/prisma/client";
+import config from "./index";
 
-// Create a single instance of PrismaClient
-export const prisma = new PrismaClient({
-  log: ["warn", "error"],
-});
+const connectionString = config.databaseUrl || "";
 
-// Handle graceful shutdown
-process.on("beforeExit", async () => {
-  await prisma.$disconnect();
-});
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
+
+export { prisma };

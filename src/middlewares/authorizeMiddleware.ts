@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 
-import { UserRole } from "@prisma/client";
+import { UserRole } from "../generated/prisma/enums";
 import { AppError } from "../utils";
 import { asyncHandler } from "../utils/asyncHandler";
 
@@ -17,6 +17,6 @@ export const authorize = (roles: UserRole[]) => {
         throw new AppError(401, " You are not authorized !");
       }
       next();
-    }
+    },
   );
 };

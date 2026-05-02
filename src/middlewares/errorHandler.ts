@@ -3,15 +3,15 @@ import { ErrorRequestHandler, RequestHandler } from "express";
 import { TErrorSources } from "../interface/error.interface";
 import { AppError } from "../utils";
 
-import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import config from "../config";
+import { Prisma } from "../generated/prisma/client";
 
 export const globalErrorHandler: ErrorRequestHandler = (
   err,
   req,
   res,
-  _next
+  _next,
 ) => {
   // define default values
   let statusCode = 500;

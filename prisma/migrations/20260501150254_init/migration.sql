@@ -29,12 +29,6 @@ CREATE TYPE "PaymentMethod" AS ENUM ('ONLINE', 'CASH');
 CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED', 'REFUNDED');
 
 -- CreateEnum
-CREATE TYPE "WalletTransactionType" AS ENUM ('CREDIT', 'DEBIT');
-
--- CreateEnum
-CREATE TYPE "WalletTransactionCategory" AS ENUM ('TASK_PAYMENT', 'DIRECT_COMMISSION_DEDUCTION', 'DUE_COMMISSION_DEDUCTION', 'BONUS', 'REFUND', 'WITHDRAWAL');
-
--- CreateEnum
 CREATE TYPE "CommissionStatus" AS ENUM ('DUE', 'PAID', 'CANCELLED');
 
 -- CreateEnum
@@ -45,6 +39,12 @@ CREATE TYPE "PaymentType" AS ENUM ('INITIAL', 'REFUND', 'RETRY', 'TIP', 'ADJUSTM
 
 -- CreateEnum
 CREATE TYPE "WalletTransactionStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "WalletTransactionType" AS ENUM ('CREDIT', 'DEBIT');
+
+-- CreateEnum
+CREATE TYPE "WalletTransactionCategory" AS ENUM ('TASK_PAYMENT', 'DIRECT_COMMISSION_DEDUCTION', 'DUE_COMMISSION_DEDUCTION', 'BONUS', 'REFUND', 'WITHDRAWAL');
 
 -- CreateTable
 CREATE TABLE "users" (
