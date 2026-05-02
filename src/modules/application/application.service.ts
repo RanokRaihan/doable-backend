@@ -154,7 +154,7 @@ const getAllMyApplicationsService = async (
             id: true,
             title: true,
             description: true,
-            status: false,
+            status: true,
             postedById: true,
           },
         },
