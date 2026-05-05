@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-05-04 — Added `GET /:id/related` public endpoint; returns up to 4 OPEN tasks sharing the same category as the given task
 - 2026-05-02 — Confirmed enum sync after schema update: `PAYMENT_PROCESSING` fully removed from `TaskStatus`; `CLOSED` added to `ApplicationStatus`; all generated files, service logic, and api-contracts verified consistent
 - 2026-05-01 — Updated `TaskStatus` enum: replaced `PAYMENT_PROCESSING` with `PAYMENT_PENDING` + `PAYMENT_INITIATED`; updated status machine in AGENTS.md and api-contract-task.md; added `CLOSED` to `ApplicationStatus` in api-contract-application.md
 - 2026-04-27 — Split `api-contract.md` into `api-contracts/` (shared.md + one file per module); updated all references in AGENTS.md and CLAUDE.md; removed demo route section
@@ -217,6 +218,7 @@ Full request/response contracts are in `api-contracts/` — see `api-contracts/i
 | GET    | `/recently-posted`            | optional JWT | —     | Recently posted tasks                |
 | GET    | `/my-posted-tasks`            | JWT          | USER  | All tasks posted by current user     |
 | GET    | `/my-posted-task/:taskId`     | JWT          | USER  | Specific task posted by current user |
+| GET    | `/:id/related`                | —            | —     | Up to 4 related tasks (same category)|
 | GET    | `/:id`                        | —            | —     | Get task by ID                       |
 | POST   | `/post-task`                  | JWT          | USER  | Create a new task                    |
 | PATCH  | `/update-task/:id`            | JWT          | USER  | Update task (owner only)             |

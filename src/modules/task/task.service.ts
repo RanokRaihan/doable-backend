@@ -570,6 +570,33 @@ const requestTaskRevisionService = async (taskId: string, userId: string) => {
   }
 };
 
+// Get related tasks by category (up to 4, excluding the source task)
+const getRelatedTasksService = async (taskId: string) => {
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, isDeleted: false },
+    select: { id: true, category: true },
+  });
+
+  if (!task) {
+    throw new AppError(404, "Task not found");
+  }
+
+  const relatedTasks = await prisma.task.findMany({
+    where: {
+      isDeleted: false,
+      status: "OPEN",
+      category: task.category,
+      NOT: { id: taskId },
+    },
+    include: { images: true },
+    omit: { ...taskSensitiveFieldsPublic },
+    orderBy: { createdAt: "desc" },
+    take: 4,
+  });
+
+  return relatedTasks;
+};
+
 // Get recently posted tasks (latest 3, exclude current user's tasks)
 const getRecentlyPostedTasksService = async (userId: string | undefined) => {
   try {
@@ -602,6 +629,7 @@ export {
   getAllMyTasksService,
   getMyPostedTaskService,
   getRecentlyPostedTasksService,
+  getRelatedTasksService,
   getTaskByIdService,
   getTasksService,
   markTaskAsCompletedService,

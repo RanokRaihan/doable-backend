@@ -240,6 +240,12 @@ const deleteTaskImageSchema = z.object({
   }),
 });
 
+const getRelatedTasksSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, "Task ID is required"),
+  }),
+});
+
 // exports
 
 export {
@@ -249,6 +255,7 @@ export {
   getAllMyTasksSchema,
   getAllTasksSchema,
   getMyPostedTaskSchema,
+  getRelatedTasksSchema,
   updateTaskImagesSchema,
   updateTaskSchema
 };

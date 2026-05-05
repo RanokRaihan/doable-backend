@@ -127,6 +127,7 @@ interface Image {
 | GET    | `/recently-posted`            | —    | —     | Get recently posted tasks                |
 | GET    | `/my-posted-tasks`            | JWT  | USER  | Get all tasks posted by current user     |
 | GET    | `/my-posted-task/:taskId`     | JWT  | USER  | Get specific task posted by current user |
+| GET    | `/:id/related`                | —    | —     | Get up to 4 related tasks (same category)|
 | GET    | `/:id`                        | —    | —     | Get task by ID                           |
 | POST   | `/post-task`                  | JWT  | USER  | Create task                              |
 | PATCH  | `/update-task/:id`            | JWT  | USER  | Update task (owner only)                 |
@@ -187,6 +188,20 @@ Response `data`: Task object (public view) including:
 Get recently posted tasks. No authentication required.
 
 Response `data`: Array of recently posted task objects (public view).
+
+---
+
+#### `GET /:id/related`
+
+Get up to 4 tasks related to the given task by matching `category`. Only returns `OPEN`, non-deleted tasks, excluding the source task itself.
+
+**Params:** `id` — ID of the source task.
+
+Response `data`: Array of up to 4 `TaskPublic` objects (same shape as `GET /all-task` items, including `images`).
+
+**Errors:**
+
+- `404` — Task not found
 
 ---
 
@@ -407,6 +422,7 @@ const protectedRoutes = {
 const publicRoutes = [
   "GET  /api/v1/task/all-task",
   "GET  /api/v1/task/recently-posted",
+  "GET  /api/v1/task/:id/related",
   "GET  /api/v1/task/:id",
 ];
 ```

@@ -16,6 +16,7 @@ import {
   getAllMyTasksService,
   getMyPostedTaskService,
   getRecentlyPostedTasksService,
+  getRelatedTasksService,
   getTaskByIdService,
   getTasksService,
   markTaskAsCompletedService,
@@ -246,6 +247,17 @@ const getRecentlyPostedTasksController: RequestHandler = asyncHandler(
   },
 );
 
+const getRelatedTasksController: RequestHandler = asyncHandler(
+  async (req, res) => {
+    const taskId = req.params.id;
+    if (!taskId) {
+      throw new AppError(400, "Task ID is required");
+    }
+    const result = await getRelatedTasksService(taskId);
+    sendResponse(res, 200, "Related tasks retrieved successfully!", result);
+  },
+);
+
 // Exporting controllers for use in routes
 export {
   addTaskImagesController,
@@ -256,6 +268,7 @@ export {
   getAllMyTasksController,
   getMyPostedTaskController,
   getRecentlyPostedTasksController,
+  getRelatedTasksController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,

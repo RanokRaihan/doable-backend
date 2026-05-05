@@ -12,6 +12,7 @@ import {
   getAllMyTasksController,
   getMyPostedTaskController,
   getRecentlyPostedTasksController,
+  getRelatedTasksController,
   getTaskByIdController,
   getTasksController,
   markTaskAsInProgressController,
@@ -27,6 +28,7 @@ import {
   getAllMyTasksSchema,
   getAllTasksSchema,
   getMyPostedTaskSchema,
+  getRelatedTasksSchema,
   updateTaskImagesSchema,
   updateTaskSchema,
 } from "./task.validator";
@@ -140,6 +142,11 @@ router.get(
   getTasksController,
 );
 router.get("/recently-posted", optionalAuth, getRecentlyPostedTasksController);
+router.get(
+  "/:id/related",
+  validateRequest(getRelatedTasksSchema),
+  getRelatedTasksController,
+);
 router.get("/:id", optionalAuth, getTaskByIdController);
 
 // Export the router to be used in the main application
