@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-05-05 — Fixed all 11 issues from ISSUE.md: await bug (wallet), double lock check (auth), JWT fail-fast + CORS from env (config), payment status regression (payment service), missing return redirect (payment controller), soft-delete filter (user service), console.log removal (task service), ResponseHandler migration (payment controller), bcrypt rounds 10→12 (user service), removed pervasive try-catch wrappers across all service files
 - 2026-05-05 — Full codebase audit for v1: fixed AGENTS.md (env vars, field names, routes, service map); created issues/ISSUE.md; added issues/ to .gitignore
 - 2026-05-04 — Added `GET /:id/related` public endpoint; returns up to 4 OPEN tasks sharing the same category as the given task
 - 2026-05-02 — Confirmed enum sync after schema update: `PAYMENT_PROCESSING` fully removed from `TaskStatus`; `CLOSED` added to `ApplicationStatus`; all generated files, service logic, and api-contracts verified consistent
@@ -16,11 +17,11 @@
 
 ```
 src/
-  app.ts                      # Express setup: CORS (hardcoded localhost:3000), JSON body parser, route mount at /api/v1, globalErrorHandler, notFoundHandler
+  app.ts                      # Express setup: CORS (origin from config.corsOrigin / CORS_ORIGIN env), JSON body parser, route mount at /api/v1, globalErrorHandler, notFoundHandler
   server.ts                   # HTTP listen entrypoint
 
   config/
-    index.ts                  # Single typed Config object; ALL env vars read here — never use process.env elsewhere
+    index.ts                  # Single typed Config object; ALL env vars read here — never use process.env elsewhere; throws FATAL error at startup if DATABASE_URL, JWT_ACCESS_SECRET, or JWT_REFRESH_SECRET are missing
     database.ts               # Singleton PrismaClient exported as `prisma`; import this in services
     nodemailer.config.ts      # Nodemailer SMTP transporter setup
 
@@ -284,7 +285,7 @@ None. No cron, queue, or scheduled job infrastructure exists in this codebase.
 - **Route registration order matters:** In the application router, `GET /my-applications` and `GET /task/:taskId` are registered **before** `GET /:applicationId` to prevent collision
 - **`optionalAuth`** used on `/all-task` and `/recently-posted` — attaches `req.user` if token present but does not block unauthenticated requests
 - **`wallet-transaction/:tnxId`** parameter is the Prisma record ID (cuid), **not** the `transactionId` string (e.g., `"WTNX-..."`)
-- **CORS** is hardcoded to `http://localhost:3000` in `src/app.ts`. `FRONTEND_URL` env var is used **only** in email links, not for CORS
+- **CORS** origin is read from `config.corsOrigin` in `src/app.ts`. Set `CORS_ORIGIN` env var (supports comma-separated list for multiple origins); falls back to `FRONTEND_URL`, then `http://localhost:3000`
 - **`agreedCompensation`** on `Task` is set during application approval, copied from `Application.proposedCompensation`
 - **Commission rate** comes from `config.commissionRate` (platform-wide), stored per-payment in the `Payment.commissionRate` field
 - **`payment.dummy.service.ts`** is the actual IPN handler currently in use — real SSLCommerz SDK validation is not yet wired up

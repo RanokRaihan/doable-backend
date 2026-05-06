@@ -1,5 +1,6 @@
 import cors from "cors";
 import express, { Application, Request, Response } from "express";
+import config from "./config";
 import {
   globalErrorHandler,
   notFoundHandler,
@@ -11,7 +12,7 @@ const app: Application = express();
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:3000", // Allow frontend; restrict in production
+    origin: config.corsOrigin,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,

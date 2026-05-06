@@ -107,5 +107,3 @@ build/
 
 /generated/prisma
 
-# Local issue tracker (internal dev notes — not for version control)
-issues/
