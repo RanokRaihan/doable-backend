@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-05-05 — Full codebase audit for v1: fixed AGENTS.md (env vars, field names, routes, service map); created issues/ISSUE.md; added issues/ to .gitignore
 - 2026-05-04 — Added `GET /:id/related` public endpoint; returns up to 4 OPEN tasks sharing the same category as the given task
 - 2026-05-02 — Confirmed enum sync after schema update: `PAYMENT_PROCESSING` fully removed from `TaskStatus`; `CLOSED` added to `ApplicationStatus`; all generated files, service logic, and api-contracts verified consistent
 - 2026-05-01 — Updated `TaskStatus` enum: replaced `PAYMENT_PROCESSING` with `PAYMENT_PENDING` + `PAYMENT_INITIATED`; updated status machine in AGENTS.md and api-contract-task.md; added `CLOSED` to `ApplicationStatus` in api-contract-application.md
@@ -68,10 +69,9 @@ src/
       application.constant.ts   # Application field constants
 
     payment/
-      payment.route.ts        # Cash init/confirm/decline, online init, IPN webhook, payment history routes
+      payment.route.ts        # Cash init/confirm/decline, online init/success/fail/cancel, IPN webhook, payment history, session token routes
       payment.controller.ts   # Payment request handlers
-      payment.service.ts      # Payment business logic: cash flow, SSLCommerz online init, wallet credit, commission record creation
-      payment.dummy.service.ts # IPN validation handler — NOTE: uses dummy logic, real SSLCommerz validation not yet implemented
+      payment.service.ts      # Payment business logic: cash flow, SSLCommerz online init, success/fail/cancel callbacks, wallet credit, commission record creation
       payment.utils.ts        # getDefaultDescription() and other payment helpers
       payment.validation.ts   # Zod schemas for payment endpoints
       payment.interface.ts    # IpnQuery and payment payload types
@@ -170,7 +170,7 @@ See `api-contracts/api-contract-auth.md` for full token shapes, cookie details, 
 - **JWT payload:** `{ userId, email, name, role: UserRole, profileStatus, emailVerified }`
 - **`auth()` middleware:** verifies token → fetches user from DB → attaches to `req.user`. Throws 401 for missing/invalid/expired token or suspended account.
 - **`optionalAuth()` middleware:** same flow but does not throw if no token — used on public endpoints that show owner-specific context when authenticated
-- **Account locking:** `User.failedLoginAttempts` incremented on bad password. Locks at **40 attempts** (TODO: change to 5 for production)
+- **Account locking:** `User.failedLoginCount` incremented on bad password. Locks after **5 failed attempts** (`failedLoginCount >= 5`); lock auto-expires after 15 minutes
 - **Email verification:** `POST /auth/send-verification-email` → email with raw token → `POST /auth/verify-email` with that token
 - **Password reset:** `POST /auth/forgot-password` → email link to `FRONTEND_URL/reset-password?token=<token>&email=<email>` (token expires in 15 min) → `POST /auth/reset-password`
 
@@ -212,24 +212,24 @@ Full request/response contracts are in `api-contracts/` — see `api-contracts/i
 
 ### Task (`/api/v1/task`)
 
-| Method | Path                          | Auth         | Roles | Description                          |
-| ------ | ----------------------------- | ------------ | ----- | ------------------------------------ |
-| GET    | `/all-task`                   | optional JWT | —     | List tasks with filters/pagination   |
-| GET    | `/recently-posted`            | optional JWT | —     | Recently posted tasks                |
-| GET    | `/my-posted-tasks`            | JWT          | USER  | All tasks posted by current user     |
-| GET    | `/my-posted-task/:taskId`     | JWT          | USER  | Specific task posted by current user |
-| GET    | `/:id/related`                | —            | —     | Up to 4 related tasks (same category)|
-| GET    | `/:id`                        | —            | —     | Get task by ID                       |
-| POST   | `/post-task`                  | JWT          | USER  | Create a new task                    |
-| PATCH  | `/update-task/:id`            | JWT          | USER  | Update task (owner only)             |
-| DELETE | `/delete-task/:id`            | JWT          | USER  | Soft-delete task (owner only)        |
-| POST   | `/:taskId/image`              | JWT          | USER  | Add images (max 5, owner only)       |
-| PATCH  | `/:taskId/image`              | JWT          | USER  | Replace/update task images           |
-| DELETE | `/:taskId/image/:imageId`     | JWT          | USER  | Delete a single task image           |
-| PATCH  | `/:taskId/mark-in-progress`   | JWT          | USER  | Assigned applicant starts work       |
-| PATCH  | `/:taskId/mark-completed`     | JWT          | USER  | Assigned applicant marks done        |
-| PATCH  | `/:taskId/approve-completion` | JWT          | USER  | Poster approves completion           |
-| PATCH  | `/:taskId/request-revision`   | JWT          | USER  | Poster requests revision             |
+| Method | Path                          | Auth         | Roles | Description                           |
+| ------ | ----------------------------- | ------------ | ----- | ------------------------------------- |
+| GET    | `/all-task`                   | optional JWT | —     | List tasks with filters/pagination    |
+| GET    | `/recently-posted`            | optional JWT | —     | Recently posted tasks                 |
+| GET    | `/my-posted-tasks`            | JWT          | USER  | All tasks posted by current user      |
+| GET    | `/my-posted-task/:taskId`     | JWT          | USER  | Specific task posted by current user  |
+| GET    | `/:id/related`                | —            | —     | Up to 4 related tasks (same category) |
+| GET    | `/:id`                        | —            | —     | Get task by ID                        |
+| POST   | `/post-task`                  | JWT          | USER  | Create a new task                     |
+| PATCH  | `/update-task/:id`            | JWT          | USER  | Update task (owner only)              |
+| DELETE | `/delete-task/:id`            | JWT          | USER  | Soft-delete task (owner only)         |
+| POST   | `/:taskId/image`              | JWT          | USER  | Add images (max 5, owner only)        |
+| PATCH  | `/:taskId/image`              | JWT          | USER  | Replace/update task images            |
+| DELETE | `/:taskId/image/:imageId`     | JWT          | USER  | Delete a single task image            |
+| PATCH  | `/:taskId/mark-in-progress`   | JWT          | USER  | Assigned applicant starts work        |
+| PATCH  | `/:taskId/mark-completed`     | JWT          | USER  | Assigned applicant marks done         |
+| PATCH  | `/:taskId/approve-completion` | JWT          | USER  | Poster approves completion            |
+| PATCH  | `/:taskId/request-revision`   | JWT          | USER  | Poster requests revision              |
 
 ### Application (`/api/v1/application`)
 
@@ -245,16 +245,20 @@ Full request/response contracts are in `api-contracts/` — see `api-contracts/i
 
 ### Payment (`/api/v1/payment`)
 
-| Method | Path                       | Auth | Roles | Description                          |
-| ------ | -------------------------- | ---- | ----- | ------------------------------------ |
-| POST   | `/cash/init/:taskId`       | JWT  | USER  | Initiate cash payment                |
-| PATCH  | `/cash/confirm/:paymentId` | JWT  | USER  | Confirm cash payment received        |
-| PATCH  | `/cash/decline/:paymentId` | JWT  | USER  | Decline cash payment                 |
-| POST   | `/online/init/:taskId`     | JWT  | USER  | Initiate online payment (SSLCommerz) |
-| POST   | `/online/ipn-validate/`    | —    | —     | SSLCommerz IPN webhook               |
-| GET    | `/user/payment-made`       | JWT  | USER  | Payments made by user                |
-| GET    | `/user/payment-received`   | JWT  | USER  | Payments received by user            |
-| GET    | `/:id`                     | JWT  | USER  | Get payment by ID                    |
+| Method | Path                       | Auth | Roles | Description                            |
+| ------ | -------------------------- | ---- | ----- | -------------------------------------- |
+| POST   | `/cash/init/:taskId`       | JWT  | USER  | Initiate cash payment                  |
+| PATCH  | `/cash/confirm/:paymentId` | JWT  | USER  | Confirm cash payment received          |
+| PATCH  | `/cash/decline/:paymentId` | JWT  | USER  | Decline cash payment                   |
+| POST   | `/online/init/:taskId`     | JWT  | USER  | Initiate online payment (SSLCommerz)   |
+| POST   | `/success`                 | —    | —     | SSLCommerz success callback (redirect) |
+| POST   | `/fail`                    | —    | —     | SSLCommerz fail callback (redirect)    |
+| POST   | `/cancel`                  | —    | —     | SSLCommerz cancel callback (redirect)  |
+| POST   | `/online/ipn-validate/`    | —    | —     | SSLCommerz IPN webhook                 |
+| GET    | `/user/payment-made`       | JWT  | USER  | Payments made by user                  |
+| GET    | `/user/payment-received`   | JWT  | USER  | Payments received by user              |
+| GET    | `/session/:sessionToken`   | JWT  | USER  | Payment by session token               |
+| GET    | `/:id`                     | JWT  | USER  | Get payment by ID                      |
 
 ### Wallet (`/api/v1/wallet`)
 
@@ -291,30 +295,34 @@ None. No cron, queue, or scheduled job infrastructure exists in this codebase.
 
 All loaded in `src/config/index.ts`.
 
-| Variable                    | Description                                             |
-| --------------------------- | ------------------------------------------------------- |
-| `PORT`                      | Server port (default: 5000)                             |
-| `NODE_ENV`                  | `development` or `production`                           |
-| `DATABASE_URL`              | PostgreSQL connection string (Prisma)                   |
-| `APP_URL`                   | Backend base URL                                        |
-| `FRONTEND_URL`              | Frontend base URL (email links only — not used by CORS) |
-| `COMMISSION_RATE`           | Platform commission rate as decimal (e.g., 0.15)        |
-| `JWT_ACCESS_SECRET`         | Access token signing secret                             |
-| `JWT_REFRESH_SECRET`        | Refresh token signing secret                            |
-| `JWT_EXPIRES_IN`            | Access token expiry (e.g., `15d`)                       |
-| `JWT_REFRESH_EXPIRES_IN`    | Refresh token expiry (e.g., `30d`)                      |
-| `SMTP_HOST`                 | SMTP host (default: smtp.gmail.com)                     |
-| `SMTP_PORT`                 | SMTP port (default: 587)                                |
-| `SMTP_USER`                 | SMTP username                                           |
-| `SMTP_PASS`                 | SMTP password                                           |
-| `SSLCOMMERZ_STORE_ID`       | SSLCommerz store ID                                     |
-| `SSLCOMMERZ_STORE_PASSWORD` | SSLCommerz store password                               |
-| `SSLCOMMERZ_SUCCESS_URL`    | Payment success redirect URL                            |
-| `SSLCOMMERZ_FAIL_URL`       | Payment failure redirect URL                            |
-| `SSLCOMMERZ_CANCEL_URL`     | Payment cancel redirect URL                             |
-| `SSLCOMMERZ_GATEWAY_URL`    | SSLCommerz gateway base URL                             |
-| `SSLCOMMERZ_VALIDATION_URL` | SSLCommerz validation API URL                           |
-| `SSLCOMMERZ_IPN_URL`        | SSLCommerz IPN webhook URL                              |
+| Variable                 | Description                                             |
+| ------------------------ | ------------------------------------------------------- |
+| `PORT`                   | Server port (default: 5000)                             |
+| `NODE_ENV`               | `development` or `production`                           |
+| `DATABASE_URL`           | PostgreSQL connection string (Prisma)                   |
+| `APP_URL`                | Backend base URL                                        |
+| `FRONTEND_URL`           | Frontend base URL (email links only — not used by CORS) |
+| `COMMISSION_RATE`        | Platform commission rate as decimal (e.g., 0.15)        |
+| `JWT_ACCESS_SECRET`      | Access token signing secret                             |
+| `JWT_REFRESH_SECRET`     | Refresh token signing secret                            |
+| `JWT_EXPIRES_IN`         | Access token expiry (e.g., `15d`)                       |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token expiry (e.g., `30d`)                      |
+| `SMTP_HOST`              | SMTP host (default: smtp.gmail.com)                     |
+| `SMTP_PORT`              | SMTP port (default: 587)                                |
+| `SMTP_USER`              | SMTP username                                           |
+| `SMTP_PASS`              | SMTP password                                           |
+| `STORE_ID`               | SSLCommerz store ID                                     |
+| `STORE_PASSWORD`         | SSLCommerz store password                               |
+| `SUCCESS_URL`            | SSLCommerz success callback URL (backend)               |
+| `FAIL_URL`               | SSLCommerz fail callback URL (backend)                  |
+| `CANCEL_URL`             | SSLCommerz cancel callback URL (backend)                |
+| `SUCCESS_URL_FRONTEND`   | Frontend redirect URL after successful payment          |
+| `FAIL_URL_FRONTEND`      | Frontend redirect URL after failed payment              |
+| `CANCEL_URL_FRONTEND`    | Frontend redirect URL after cancelled payment           |
+| `GATEWAY_BASE_URL`       | SSLCommerz gateway base URL                             |
+| `VALIDATION_API_URL`     | SSLCommerz validation API URL                           |
+| `IPN_URL`                | SSLCommerz IPN webhook URL                              |
+| `SMTP_SECURE`            | SMTP TLS flag (`"true"` or `"false"`, default `false`)  |
 
 ---
 
@@ -324,7 +332,7 @@ All loaded in `src/config/index.ts`.
 - **Express 5:** Using `^5.1.0`, which handles async errors natively in route handlers. `asyncHandler` is still used for explicit error propagation and consistency.
 - **Prisma `omit` for field exclusion:** Sensitive fields removed at query time via `omit` rather than post-query deletion. Constants defined per-module in `.constant.ts`.
 - **Dual token delivery:** Refresh token returned both in response body and as httpOnly cookie — body copy for mobile/native clients that manage cookies manually.
-- **Dummy IPN service:** `payment.dummy.service.ts` is the active IPN handler because the real SSLCommerz SDK validation is not yet integrated. Must be replaced before production.
-- **Account lock threshold:** Currently 40 failed login attempts (intended: 5). Comment in `auth.service.ts` notes this is for testing. Must be fixed before production.
+- **SSLCommerz callbacks:** `payment.dummy.service.ts` has been removed; real `validateOnlinePaymentService` in `payment.service.ts` now handles IPN validation and success/fail/cancel redirect callbacks.
+- **Account lock threshold:** Locks after 5 failed login attempts (`failedLoginCount >= 5` in `incrementFailedLoginCount`). Lock auto-expires after 15 minutes — checked at login time in `loginUserService`.
 - **Single baseline migration:** Only one migration (`20260410233707_init`) exists. All schema history is in the initial migration.
 - **No test infrastructure:** No test runner configured. `npm test` exits with error code 1.

@@ -74,18 +74,24 @@ interface Payment {
 
 ## Endpoints
 
-| Method | Path                       | Auth | Roles | Description                            |
-| ------ | -------------------------- | ---- | ----- | -------------------------------------- |
-| POST   | `/cash/init/:taskId`       | JWT  | USER  | Initiate cash payment (poster)         |
-| PATCH  | `/cash/confirm/:paymentId` | JWT  | USER  | Confirm cash received (tasker)         |
-| PATCH  | `/cash/decline/:paymentId` | JWT  | USER  | Dispute cash payment (tasker)          |
-| POST   | `/online/init/:taskId`     | JWT  | USER  | Initiate online payment via SSLCommerz |
-| POST   | `/online/ipn-validate/`    | —    | —     | SSLCommerz IPN webhook                 |
-| GET    | `/user/payment-made`       | JWT  | USER  | Payments made by current user          |
-| GET    | `/user/payment-received`   | JWT  | USER  | Payments received by current user      |
-| GET    | `/:id`                     | JWT  | USER  | Payment by ID                          |
+| Method | Path                       | Auth | Roles | Description                                                                               |
+| ------ | -------------------------- | ---- | ----- | ----------------------------------------------------------------------------------------- |
+| POST   | `/cash/init/:taskId`       | JWT  | USER  | Initiate cash payment (poster)                                                            |
+| PATCH  | `/cash/confirm/:paymentId` | JWT  | USER  | Confirm cash received (tasker)                                                            |
+| PATCH  | `/cash/decline/:paymentId` | JWT  | USER  | Dispute cash payment (tasker)                                                             |
+| POST   | `/online/init/:taskId`     | JWT  | USER  | Initiate online payment via SSLCommerz                                                    |
+| POST   | `/success`                 | —    | —     | SSLCommerz success callback — validates & redirects to `SUCCESS_URL_FRONTEND`             |
+| POST   | `/fail`                    | —    | —     | SSLCommerz fail callback — marks payment FAILED & redirects to `FAIL_URL_FRONTEND`        |
+| POST   | `/cancel`                  | —    | —     | SSLCommerz cancel callback — marks payment CANCELLED & redirects to `CANCEL_URL_FRONTEND` |
+| POST   | `/online/ipn-validate/`    | —    | —     | SSLCommerz IPN webhook — validates & settles payment                                      |
+| GET    | `/user/payment-made`       | JWT  | USER  | Payments made by current user                                                             |
+| GET    | `/user/payment-received`   | JWT  | USER  | Payments received by current user                                                         |
+| GET    | `/session/:sessionToken`   | JWT  | USER  | Payment by session token                                                                  |
+| GET    | `/:id`                     | JWT  | USER  | Payment by ID                                                                             |
 
-> ⚠️ **IPN webhook is currently using `dummyValidateOnlinePaymentService`** — the real `validateOnlinePaymentService` is commented out in `payment.controller.ts`. Online payment settlement does not actually process in production code.
+> **SSLCommerz Redirect Callbacks (`/success`, `/fail`, `/cancel`):** These receive a `POST` body with `IpnQuery` fields and a `?sessionToken=` query param. They validate/update the payment record and redirect the browser to the appropriate frontend URL with `?sessionToken=` appended. These are not JSON APIs — they return HTTP redirects.
+>
+> **Session token lookup (`/session/:sessionToken`):** Used by the frontend after the SSLCommerz redirect to fetch the payment status for the completed session.
 
 ---
 
@@ -265,22 +271,67 @@ Response `data`:
 
 ---
 
+#### `GET /session/:sessionToken`
+
+Fetch payment status by session token. Used by the frontend after SSLCommerz redirects back. Accessible by payer only.
+
+Response `data`:
+
+```ts
+{
+  id: string;
+  transactionId: string;
+  amount: string;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  sessionToken: string;
+  sessionExpiresAt: string | null;
+  paidAt: string | null;
+  failedAt: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  task: {
+    id: string;
+    title: string;
+    category: TaskCategory;
+    location: string;
+    status: TaskStatus;
+  }
+  payer: {
+    id: string;
+    name: string;
+    email: string;
+  }
+  payee: {
+    id: string;
+    name: string;
+    email: string;
+  }
+}
+```
+
+---
+
 ## Route Protection Map
 
 ```ts
 // Protected — require: Authorization: Bearer <accessToken>
 const protectedRoutes = {
-  "POST /api/v1/payment/cash/init/:taskId":       { roles: ["USER"] },
+  "POST /api/v1/payment/cash/init/:taskId": { roles: ["USER"] },
   "PATCH /api/v1/payment/cash/confirm/:paymentId": { roles: ["USER"] },
   "PATCH /api/v1/payment/cash/decline/:paymentId": { roles: ["USER"] },
-  "POST /api/v1/payment/online/init/:taskId":      { roles: ["USER"] },
-  "GET  /api/v1/payment/user/payment-made":        { roles: ["USER"] },
-  "GET  /api/v1/payment/user/payment-received":    { roles: ["USER"] },
-  "GET  /api/v1/payment/:id":                      { roles: ["USER"] },
+  "POST /api/v1/payment/online/init/:taskId": { roles: ["USER"] },
+  "GET  /api/v1/payment/user/payment-made": { roles: ["USER"] },
+  "GET  /api/v1/payment/user/payment-received": { roles: ["USER"] },
+  "GET  /api/v1/payment/session/:sessionToken": { roles: ["USER"] },
+  "GET  /api/v1/payment/:id": { roles: ["USER"] },
 };
 
-// Public — no auth required
+// Public — no auth required (SSLCommerz callbacks)
 const publicRoutes = [
+  "POST /api/v1/payment/success",
+  "POST /api/v1/payment/fail",
+  "POST /api/v1/payment/cancel",
   "POST /api/v1/payment/online/ipn-validate/",
 ];
 ```
@@ -289,10 +340,6 @@ const publicRoutes = [
 
 ## Known Mismatches & Gotchas
 
-### IPN webhook uses dummy validation service
-
-`POST /api/v1/payment/online/ipn-validate/` calls `dummyValidateOnlinePaymentService` instead of `validateOnlinePaymentService`. The dummy service **does** execute settlement (wallet credit, commission deduction, task → `COMPLETED`) but **skips the real SSLCommerz gateway validation API call** — it trusts the incoming `status` field directly without verifying against SSLCommerz. This must be replaced with the real service before production or the platform is vulnerable to forged IPN requests.
-
 ### `GET /user/payment-made` and `GET /user/payment-received` throw 404 when empty
 
-Both endpoints throw `AppError(404, "No payments made found")` / `AppError(404, "No payments received found")` instead of returning an empty array when no records exist.
+Both endpoints throw `AppError(404, ...)` instead of returning an empty array when no records exist.

@@ -81,7 +81,7 @@ A modern, scalable backend API for the **Doable** task management platform built
 4. **Setup database**
 
    ```bash
-   npx prisma migrate deploy
+   npx prisma migrate dev
    npx prisma generate
    ```
 
@@ -90,7 +90,7 @@ A modern, scalable backend API for the **Doable** task management platform built
    npm run dev
    ```
 
-Server will run on `http://localhost:5000`
+Server will run on `http://localhost:8000`
 
 ## Environment Variables
 
@@ -337,5 +337,3 @@ The API uses custom error codes:
 - `ACCOUNT_LOCKED` - Account locked after failed attempts
 
 ---
-
-**Built with ❤️ for Doable**
