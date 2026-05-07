@@ -79,15 +79,16 @@ const onlinePaymentInitController: RequestHandler = asyncHandler(
 
 const validateOnlinePaymentController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const query = req.query;
+    // SSLCommerz sends IPN as POST with form body; fall back to query params if body is empty
+    const source = req.query.tran_id ? req.query : req.body;
 
     const ipnQuery: IpnQuery = {
-      tran_id: query.tran_id as string,
-      amount: Number(query.amount),
-      bank_tran_id: query.bank_tran_id as string,
-      status: query.status as string,
-      val_id: query.val_id as string,
-      ...query,
+      tran_id: source.tran_id as string,
+      amount: Number(source.amount),
+      bank_tran_id: source.bank_tran_id as string,
+      status: source.status as string,
+      val_id: source.val_id as string,
+      ...source,
     };
 
     const response = await validateOnlinePaymentService(ipnQuery);

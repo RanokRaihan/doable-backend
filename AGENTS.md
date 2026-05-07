@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-05-06 — Security & bug audit fixes: removed GET /user/ (all users) and demo routes; added helmet, cookie-parser, express-rate-limit; wired missing auth validation schemas; fixed optionalAuth suspended check + console.error; normalized email lowercase in all schemas; US phone validation; password letter requirement; crypto.randomBytes for TnxId; cookie maxAge derived from config; JWT access default changed 15d→15m; removed try-catch from application.service.ts
 - 2026-05-05 — Fixed all 11 issues from ISSUE.md: await bug (wallet), double lock check (auth), JWT fail-fast + CORS from env (config), payment status regression (payment service), missing return redirect (payment controller), soft-delete filter (user service), console.log removal (task service), ResponseHandler migration (payment controller), bcrypt rounds 10→12 (user service), removed pervasive try-catch wrappers across all service files
 - 2026-05-05 — Full codebase audit for v1: fixed AGENTS.md (env vars, field names, routes, service map); created issues/ISSUE.md; added issues/ to .gitignore
 - 2026-05-04 — Added `GET /:id/related` public endpoint; returns up to 4 OPEN tasks sharing the same category as the given task
@@ -88,7 +89,6 @@ src/
 
   routes/
     index.ts                  # Registers all module routers under /api/v1
-    demo.routes.ts            # Dev-only routes showcasing ResponseHandler patterns — remove before production
 
   types/
     global.d.ts               # Augments Express Request with req.user: IAuthUser
@@ -123,6 +123,9 @@ src/
 | sslcommerz-lts | ^1.2.0   | SSLCommerz payment gateway client                         |
 | axios          | ^1.13.2  | HTTP client (used in payment service)                     |
 | crypto-js      | ^4.2.0   | Cryptographic utilities                                   |
+| helmet         | —        | HTTP security headers middleware                          |
+| cookie-parser  | —        | Parse Cookie header and populate req.cookies              |
+| express-rate-limit | —    | IP-level rate limiting for auth endpoints                 |
 | ts-node-dev    | ^2.0.0   | Dev server with hot reload (`--respawn --transpile-only`) |
 
 ---
@@ -201,7 +204,6 @@ Full request/response contracts are in `api-contracts/` — see `api-contracts/i
 
 | Method | Path                    | Auth | Roles | Description                        |
 | ------ | ----------------------- | ---- | ----- | ---------------------------------- |
-| GET    | `/`                     | —    | —     | Get all users (TEMP — remove prod) |
 | POST   | `/register/credentials` | —    | —     | Register with email/password       |
 | GET    | `/my-profile`           | JWT  | USER  | Get own profile                    |
 | PATCH  | `/complete-profile`     | JWT  | USER  | Complete profile (one-time)        |

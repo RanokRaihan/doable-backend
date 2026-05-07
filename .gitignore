@@ -107,3 +107,4 @@ build/
 
 /generated/prisma
 
+/issues/*

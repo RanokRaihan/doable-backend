@@ -77,15 +77,14 @@ export const optionalAuth = asyncHandler(
 
       // Get user and validate existence
       const user = await getAuthUser(decoded.userId);
-      if (!user || user.isDeleted) {
+      if (!user || user.isDeleted || user.profileStatus === "SUSPENDED") {
         return next();
       }
 
       // Attach user to request and proceed
       req.user = user;
       next();
-    } catch (error) {
-      console.error("Error in optionalAuth middleware:", error);
+    } catch {
       next();
     }
   },
