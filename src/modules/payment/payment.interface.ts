@@ -16,7 +16,7 @@ export interface PaymentPayload {
 
 export interface IpnQuery {
   tran_id: string;
-  val_id: string;
+  val_id?: string;
   amount: number;
   card_type?: string;
   store_amount?: number;

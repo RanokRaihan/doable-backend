@@ -530,32 +530,12 @@ const onlinePaymentInitService = async (userId: string, taskId: string) => {
 };
 
 const validateOnlinePaymentService = async (payload: IpnQuery) => {
-  if (!payload || !payload.tran_id || !payload.status || !payload.val_id) {
-    throw new AppError(400, "Invalid IPN payload", "INVALID_PAYLOAD", "ipn");
-  }
-  if (payload.status !== "VALID") {
-    throw new AppError(400, "Payment not valid", "PAYMENT_INVALID", "ipn");
-  }
-
-  const response = await axios({
-    method: "GET",
-    url: `${config.sslcommerz.validationApiUrl}?val_id=${payload.val_id}&store_id=${config.sslcommerz.storeId}&store_passwd=${config.sslcommerz.storePassword}&format=json`,
-  });
-
-  if (
-    response.data.status !== "VALID" &&
-    response.data.status !== "VALIDATED"
-  ) {
-    throw new AppError(
-      400,
-      "Payment validation failed",
-      "PAYMENT_VALIDATION_FAILED",
-      "ipn",
-    );
+  if (!payload?.tran_id) {
+    throw new AppError(400, "Invalid IPN payload: tran_id is required", "INVALID_PAYLOAD", "ipn");
   }
 
   const paymentRecord = await prisma.payment.findFirst({
-    where: { transactionId: response.data.tran_id },
+    where: { transactionId: payload.tran_id },
     select: {
       id: true,
       status: true,
@@ -565,98 +545,188 @@ const validateOnlinePaymentService = async (payload: IpnQuery) => {
       taskId: true,
     },
   });
+
   if (!paymentRecord) {
     throw new AppError(404, "Payment record not found", "NOT_FOUND", "ipn");
   }
-  if (paymentRecord.status === "COMPLETED") {
+
+  // Idempotency: terminal states need no further processing
+  if (["COMPLETED", "FAILED", "CANCELLED"].includes(paymentRecord.status)) {
     return paymentRecord;
   }
 
-  const finalPayment = await prisma.$transaction(async (tx) => {
-    const updatedPayment = await tx.payment.update({
-      where: { transactionId: response.data.tran_id, status: "PENDING" },
-      data: {
-        status: "COMPLETED",
-        paidAt: new Date(),
-        metadata: response.data,
-        ipnReceivedAt: new Date(),
-        ipnReceived: true,
-      },
-    });
+  const status = payload.status;
 
-    const wallet = await tx.wallet.findUnique({
-      where: { userId: updatedPayment.payeeId },
-    });
-    if (!wallet) {
-      throw new AppError(404, "Wallet not found for payee");
+  // ── VALID: validate with SSLCommerz and complete the payment ────────────────
+  if (status === "VALID") {
+    if (!payload.val_id) {
+      throw new AppError(400, "val_id is required for payment validation", "INVALID_PAYLOAD", "ipn");
     }
 
-    const tnxID = createTnxId("WTNX");
-
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        transactionId: tnxID,
-        amount: updatedPayment.amount,
-        type: "CREDIT",
-        category: WalletTransactionCategory.TASK_PAYMENT,
-        refPaymentId: updatedPayment.id,
-        description: getDefaultDescription("TASK_PAYMENT"),
-        balanceAfter: Number(wallet.balance) + Number(updatedPayment.amount),
-        balanceBefore: Number(wallet.balance),
-      },
+    const response = await axios({
+      method: "GET",
+      url: `${config.sslcommerz.validationApiUrl}?val_id=${payload.val_id}&store_id=${config.sslcommerz.storeId}&store_passwd=${config.sslcommerz.storePassword}&format=json`,
     });
 
-    const updatedWallet = await tx.wallet.update({
-      where: { userId: updatedPayment.payeeId },
-      data: { balance: { increment: updatedPayment.amount } },
+    if (
+      response.data.status !== "VALID" &&
+      response.data.status !== "VALIDATED"
+    ) {
+      throw new AppError(400, "Payment validation failed", "PAYMENT_VALIDATION_FAILED", "ipn");
+    }
+
+    const finalPayment = await prisma.$transaction(async (tx) => {
+      const updatedPayment = await tx.payment.update({
+        where: { transactionId: payload.tran_id, status: "PENDING" },
+        data: {
+          status: "COMPLETED",
+          paidAt: new Date(),
+          metadata: response.data,
+          ipnReceivedAt: new Date(),
+          ipnReceived: true,
+        },
+      });
+
+      const wallet = await tx.wallet.findUnique({
+        where: { userId: updatedPayment.payeeId },
+      });
+      if (!wallet) {
+        throw new AppError(404, "Wallet not found for payee");
+      }
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          transactionId: createTnxId("WTNX"),
+          amount: updatedPayment.amount,
+          type: "CREDIT",
+          category: WalletTransactionCategory.TASK_PAYMENT,
+          refPaymentId: updatedPayment.id,
+          description: getDefaultDescription("TASK_PAYMENT"),
+          balanceAfter: Number(wallet.balance) + Number(updatedPayment.amount),
+          balanceBefore: Number(wallet.balance),
+        },
+      });
+
+      const updatedWallet = await tx.wallet.update({
+        where: { userId: updatedPayment.payeeId },
+        data: { balance: { increment: updatedPayment.amount } },
+      });
+
+      const commissionAmount =
+        Number(updatedPayment.commissionAmount) ||
+        Number(updatedPayment.amount) * commissionRate;
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          transactionId: createTnxId("WTNX"),
+          amount: commissionAmount,
+          type: "DEBIT",
+          category: WalletTransactionCategory.DIRECT_COMMISSION_DEDUCTION,
+          refPaymentId: updatedPayment.id,
+          description: getDefaultDescription("DIRECT_COMMISSION_DEDUCTION"),
+          balanceAfter: Number(updatedWallet.balance) - commissionAmount,
+          balanceBefore: Number(updatedWallet.balance),
+        },
+      });
+
+      await tx.wallet.update({
+        where: { userId: updatedPayment.payeeId },
+        data: { balance: { decrement: commissionAmount } },
+      });
+
+      const settled = await tx.payment.update({
+        where: { id: updatedPayment.id },
+        data: { commissionDeducted: true },
+        select: {
+          id: true,
+          status: true,
+          transactionId: true,
+          amount: true,
+          method: true,
+          sessionToken: true,
+        },
+      });
+
+      await tx.task.update({
+        where: { id: updatedPayment.taskId },
+        data: { status: "COMPLETED" },
+      });
+
+      return settled;
     });
 
-    const commissionAmount =
-      Number(updatedPayment.commissionAmount) ||
-      Number(updatedPayment.amount) * commissionRate;
+    return finalPayment;
+  }
 
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        transactionId: createTnxId("WTNX"),
-        amount: commissionAmount,
-        type: "DEBIT",
-        category: WalletTransactionCategory.DIRECT_COMMISSION_DEDUCTION,
-        refPaymentId: updatedPayment.id,
-        description: getDefaultDescription("DIRECT_COMMISSION_DEDUCTION"),
-        balanceAfter: Number(updatedWallet.balance) - commissionAmount,
-        balanceBefore: Number(updatedWallet.balance),
-      },
+  // ── FAILED: mark payment failed and revert task to PAYMENT_PENDING ──────────
+  if (status === "FAILED") {
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id: paymentRecord.id },
+        data: {
+          status: "FAILED",
+          failedAt: new Date(),
+          failureReason: payload.error ?? "Payment failed",
+          gatewayResponse: payload as object,
+        },
+        select: { id: true, transactionId: true, status: true, failedAt: true },
+      });
+      await tx.task.update({
+        where: { id: paymentRecord.taskId },
+        data: { status: "PAYMENT_PENDING" },
+      });
+      return updated;
     });
+  }
 
-    await tx.wallet.update({
-      where: { userId: updatedPayment.payeeId },
-      data: { balance: { decrement: commissionAmount } },
+  // ── CANCELLED: mark payment cancelled and revert task to PAYMENT_PENDING ────
+  if (status === "CANCELLED") {
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id: paymentRecord.id },
+        data: {
+          status: "CANCELLED",
+          gatewayResponse: payload as object,
+        },
+        select: { id: true, transactionId: true, status: true },
+      });
+      await tx.task.update({
+        where: { id: paymentRecord.taskId },
+        data: { status: "PAYMENT_PENDING" },
+      });
+      return updated;
     });
+  }
 
-    const settled = await tx.payment.update({
-      where: { id: updatedPayment.id },
-      data: { commissionDeducted: true },
-      select: {
-        id: true,
-        status: true,
-        transactionId: true,
-        amount: true,
-        method: true,
-        sessionToken: true,
-      },
+  // ── EXPIRED: treat as failed, revert task ──────────────────────────────────
+  if (status === "EXPIRED") {
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id: paymentRecord.id },
+        data: {
+          status: "FAILED",
+          failedAt: new Date(),
+          failureReason: "Payment session expired",
+          gatewayResponse: payload as object,
+        },
+        select: { id: true, transactionId: true, status: true, failedAt: true },
+      });
+      await tx.task.update({
+        where: { id: paymentRecord.taskId },
+        data: { status: "PAYMENT_PENDING" },
+      });
+      return updated;
     });
+  }
 
-    await tx.task.update({
-      where: { id: updatedPayment.taskId },
-      data: { status: "COMPLETED" },
-    });
+  // ── UNATTEMPTED: customer never reached payment selection — no-op ───────────
+  if (status === "UNATTEMPTED") {
+    return paymentRecord;
+  }
 
-    return settled;
-  });
-
-  return finalPayment;
+  throw new AppError(400, `Unknown payment status: ${status}`, "UNKNOWN_STATUS", "ipn");
 };
 
 const getAllPaymentMadeService = async (
@@ -836,56 +906,6 @@ const getPaymentBySessionTokenService = async (
   return payment;
 };
 
-const paymentFailService = async (data: IpnQuery) => {
-  const payment = await prisma.payment.findFirst({
-    where: { transactionId: data.tran_id },
-    select: { id: true, status: true },
-  });
-
-  if (!payment) {
-    throw new AppError(404, "Payment record not found", "NOT_FOUND", "payment");
-  }
-
-  if (payment.status === "COMPLETED") {
-    return payment;
-  }
-
-  return prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      status: "FAILED",
-      failedAt: new Date(),
-      failureReason: data.error ?? "Payment failed",
-      gatewayResponse: data as object,
-    },
-    select: { id: true, transactionId: true, status: true, failedAt: true },
-  });
-};
-
-const paymentCancelService = async (data: IpnQuery) => {
-  const payment = await prisma.payment.findFirst({
-    where: { transactionId: data.tran_id },
-    select: { id: true, status: true },
-  });
-
-  if (!payment) {
-    throw new AppError(404, "Payment record not found", "NOT_FOUND", "payment");
-  }
-
-  if (payment.status === "COMPLETED") {
-    return payment;
-  }
-
-  return prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      status: "CANCELLED",
-      gatewayResponse: data as object,
-    },
-    select: { id: true, transactionId: true, status: true },
-  });
-};
-
 export {
   cashPaymentConfirmService,
   cashPaymentDeclineService,
@@ -895,7 +915,5 @@ export {
   getPaymentByIdService,
   getPaymentBySessionTokenService,
   onlinePaymentInitService,
-  paymentCancelService,
-  paymentFailService,
   validateOnlinePaymentService,
 };
