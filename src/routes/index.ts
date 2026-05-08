@@ -5,6 +5,7 @@ import PaymentRouter from "../modules/payment/payment.route";
 import taskRouter from "../modules/task/task.route";
 import userRouter from "../modules/user/user.route";
 import walletRouter from "../modules/wallet/wallet.route";
+import withdrawalRouter from "../modules/withdrawal/withdrawal.route";
 const router = Router();
 
 const moduleRoutes = [
@@ -31,6 +32,10 @@ const moduleRoutes = [
   {
     path: "/wallet",
     route: walletRouter,
+  },
+  {
+    path: "/withdrawal",
+    route: withdrawalRouter,
   },
 ];
 

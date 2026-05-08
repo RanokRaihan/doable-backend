@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-05-07 — Added withdrawal module: WithdrawalMethod + WithdrawalRequest models; 11 user-facing endpoints; Prisma migration `20260508031223_add_withdrawal_method_and_request`; api-contract-withdrawal.md created
 - 2026-05-07 — Resolved audit findings: removed console.log from payment fail/cancel controllers (C-01); fixed account lock off-by-one to trigger on 5th attempt (C-02); moved approved-application TOCTOU check inside $transaction (H-01); getAuthUser now throws 401 instead of 404 for missing/deleted users, removed dead middleware check (H-02); added rate limiters for /refresh-token (30/15min) and /send-verification-email (5/hour) (H-03); deleteTaskService now sets deletedAt+deletedBy (H-04); commissionAmount cast to Number() before comparison (H-05); added refreshTokenValidationSchema on /refresh-token route (M-02); approveApplicationService returns value directly from $transaction (M-03); parseExpiryToMs moved to utils/time.ts with throw on unknown unit (L-01, L-04); loginLimiter lowered 20→10 (L-02); removed getAllUsersService and getAllUsersController dead code (L-03); removed /loggedin-user alias route (I-01); updated .env.sample to match .env structure
 - 2026-05-06 — Security & bug audit fixes: removed GET /user/ (all users) and demo routes; added helmet, cookie-parser, express-rate-limit; wired missing auth validation schemas; fixed optionalAuth suspended check + console.error; normalized email lowercase in all schemas; US phone validation; password letter requirement; crypto.randomBytes for TnxId; cookie maxAge derived from config; JWT access default changed 15d→15m; removed try-catch from application.service.ts
 - 2026-05-05 — Fixed all 11 issues from ISSUE.md: await bug (wallet), double lock check (auth), JWT fail-fast + CORS from env (config), payment status regression (payment service), missing return redirect (payment controller), soft-delete filter (user service), console.log removal (task service), ResponseHandler migration (payment controller), bcrypt rounds 10→12 (user service), removed pervasive try-catch wrappers across all service files
@@ -80,6 +81,14 @@ src/
       payment.interface.ts    # IpnQuery and payment payload types
       payment.constant.ts     # Payment field omission constants (paymentSelectFieldsOwner, etc.)
 
+    withdrawal/
+      withdrawal.route.ts     # WithdrawalMethod CRUD + WithdrawalRequest lifecycle routes (user-facing only)
+      withdrawal.controller.ts # Withdrawal request handlers (11 controllers)
+      withdrawal.service.ts   # Withdrawal business logic: method CRUD (create/list/get/update/set-default/delete), request create (reserves funds), list, get, edit (adjusts balance diff), cancel (refunds balance)
+      withdrawal.validator.ts # Zod schemas for all withdrawal endpoints
+      withdrawal.interface.ts # ICreateWithdrawalMethodPayload, IUpdateWithdrawalMethodPayload, ICreateWithdrawalRequestPayload, IEditWithdrawalRequestPayload
+      withdrawal.constant.ts  # withdrawalMethodSortableFields/FilterableFields, withdrawalRequestSortableFields/FilterableFields
+
     wallet/
       wallet.route.ts         # Wallet balance, transactions, commission dues routes
       wallet.controller.ts    # Wallet request handlers
@@ -155,6 +164,8 @@ src/
 | `Wallet`            | `wallets`             | One per user; created on registration            |
 | `WalletTransaction` | `wallet_transactions` | Debit/credit ledger                              |
 | `CommissionDue`     | `commission_dues`     | Platform commission tracking                     |
+| `WithdrawalMethod`  | `withdrawal_methods`  | Saved payout accounts; soft-deleted via `isActive`; one default per wallet |
+| `WithdrawalRequest` | `withdrawal_requests` | Withdrawal request lifecycle; funds reserved on creation; `PENDING` wallet txn linked via `refWalletTnxId` |
 
 ### Task Status Machine
 
@@ -263,6 +274,22 @@ Full request/response contracts are in `api-contracts/` — see `api-contracts/i
 | GET    | `/session/:sessionToken`   | JWT  | USER  | Payment by session token               |
 | GET    | `/:id`                     | JWT  | USER  | Get payment by ID                      |
 
+### Withdrawal (`/api/v1/withdrawal`)
+
+| Method | Path                          | Auth | Roles | Description                         |
+| ------ | ----------------------------- | ---- | ----- | ----------------------------------- |
+| POST   | `/my-methods`                 | JWT  | USER  | Create a withdrawal method          |
+| GET    | `/my-methods`                 | JWT  | USER  | List active withdrawal methods      |
+| GET    | `/my-methods/:id`             | JWT  | USER  | Get withdrawal method by ID         |
+| PATCH  | `/my-methods/:id/set-default` | JWT  | USER  | Set method as default               |
+| PATCH  | `/my-methods/:id`             | JWT  | USER  | Update withdrawal method            |
+| DELETE | `/my-methods/:id`             | JWT  | USER  | Soft-delete withdrawal method       |
+| POST   | `/my-requests`                | JWT  | USER  | Create withdrawal request           |
+| GET    | `/my-requests`                | JWT  | USER  | List own withdrawal requests        |
+| GET    | `/my-requests/:id`            | JWT  | USER  | Get withdrawal request by ID        |
+| PATCH  | `/my-requests/:id`            | JWT  | USER  | Edit PENDING withdrawal request     |
+| PATCH  | `/my-requests/:id/cancel`     | JWT  | USER  | Cancel PENDING withdrawal request   |
+
 ### Wallet (`/api/v1/wallet`)
 
 | Method | Path                         | Auth | Roles | Description                     |
@@ -291,6 +318,8 @@ None. No cron, queue, or scheduled job infrastructure exists in this codebase.
 - **`agreedCompensation`** on `Task` is set during application approval, copied from `Application.proposedCompensation`
 - **Commission rate** comes from `config.commissionRate` (platform-wide), stored per-payment in the `Payment.commissionRate` field
 - **`payment.dummy.service.ts`** is the actual IPN handler currently in use — real SSLCommerz SDK validation is not yet wired up
+- **Withdrawal fund reservation:** Creating a `WithdrawalRequest` immediately debits the wallet balance and creates a `PENDING` `WalletTransaction` (category: `WITHDRAWAL`). The `refWalletTnxId` on the request links to that transaction's record ID. On cancellation the balance is credited back and the transaction status set to `CANCELLED`.
+- **`WithdrawalMethod` soft-delete:** Deletion sets `isActive: false` rather than removing the row, preserving the FK reference from historical `WithdrawalRequest` records. Active list queries always add `isActive: true` to the filter.
 
 ---
 
