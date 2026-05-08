@@ -71,22 +71,6 @@ const createUserService = async (payload: CreateUserInput) => {
   return result;
 };
 
-// ISSUE-006: added isDeleted: false filter
-const getAllUsersService = async () => {
-  const users = await prisma.user.findMany({
-    where: { isDeleted: false },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-  return users;
-};
-
 const getUserByEmailService = async (email: string) => {
   const user = await prisma.user.findUnique({
     where: { email, isDeleted: false },
@@ -409,7 +393,6 @@ export {
   completeUserProfileService,
   createUserService,
   deleteAccountService,
-  getAllUsersService,
   getPublicProfileService,
   getUserByEmailService,
   getUserByIdService,

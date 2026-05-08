@@ -215,7 +215,7 @@ const deleteTaskService = async (taskId: string, userId: string) => {
 
   await prisma.task.update({
     where: { id: taskId },
-    data: { isDeleted: true },
+    data: { isDeleted: true, deletedAt: new Date(), deletedBy: userId },
   });
 };
 

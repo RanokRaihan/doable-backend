@@ -191,10 +191,11 @@ const cashPaymentConfirmService = async (userId: string, paymentId: string) => {
       throw new AppError(404, "Wallet not found for payee");
     }
 
-    const commissionAmount =
-      payment.commissionAmount || Number(payment.amount) * commissionRate;
+    const commissionAmount = Number(
+      payment.commissionAmount || Number(payment.amount) * commissionRate,
+    );
 
-    if (wallet.balance >= commissionAmount) {
+    if (Number(wallet.balance) >= commissionAmount) {
       const updatedWallet = await tx.wallet.update({
         where: { userId: payment.payeeId },
         data: { balance: { decrement: commissionAmount } },

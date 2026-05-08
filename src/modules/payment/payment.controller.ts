@@ -181,7 +181,6 @@ const paymentSuccessController: RequestHandler = asyncHandler(
 const paymentFailController: RequestHandler = asyncHandler(async (req, res) => {
   const data: IpnQuery = req.body;
   const sessionToken = req.query?.sessionToken;
-  console.log("Payment failed query data:", data);
   if (data?.tran_id) {
     await validateOnlinePaymentService(data);
   }
@@ -194,7 +193,6 @@ const paymentCancelController: RequestHandler = asyncHandler(
   async (req, res) => {
     const data: IpnQuery = req.body;
     const sessionToken = req.query?.sessionToken;
-    console.log("Payment cancelled query data:", data);
     if (data?.tran_id) {
       await validateOnlinePaymentService(data);
     }

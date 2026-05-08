@@ -158,7 +158,7 @@ const getAuthUser = async (userId: string) => {
   });
 
   if (!user) {
-    throw new AppError(404, "User not found", "NOT_FOUND");
+    throw new AppError(401, "You are not authorized");
   }
 
   return user;
@@ -218,7 +218,7 @@ const incrementFailedLoginCount = async (
     where: { id: userId },
     data: {
       failedLoginCount: failedLoginCount + 1,
-      ...(failedLoginCount >= 5 && {
+      ...(failedLoginCount + 1 >= 5 && {
         lockedAt: new Date(),
       }),
     },

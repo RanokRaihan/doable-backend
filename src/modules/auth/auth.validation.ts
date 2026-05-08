@@ -58,10 +58,19 @@ const verifyEmailValidationSchema = z.object({
     .strict(),
 });
 
+const refreshTokenValidationSchema = z.object({
+  body: z
+    .object({
+      refreshToken: z.string().optional(),
+    })
+    .strict(),
+});
+
 export {
   changePasswordValidationSchema,
   forgotPasswordValidationSchema,
   loginValidationSchema,
+  refreshTokenValidationSchema,
   resetPasswordValidationSchema,
   sendVerificationEmailSchema,
   verifyEmailValidationSchema,

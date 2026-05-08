@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-05-07 — Resolved audit findings: removed console.log from payment fail/cancel controllers (C-01); fixed account lock off-by-one to trigger on 5th attempt (C-02); moved approved-application TOCTOU check inside $transaction (H-01); getAuthUser now throws 401 instead of 404 for missing/deleted users, removed dead middleware check (H-02); added rate limiters for /refresh-token (30/15min) and /send-verification-email (5/hour) (H-03); deleteTaskService now sets deletedAt+deletedBy (H-04); commissionAmount cast to Number() before comparison (H-05); added refreshTokenValidationSchema on /refresh-token route (M-02); approveApplicationService returns value directly from $transaction (M-03); parseExpiryToMs moved to utils/time.ts with throw on unknown unit (L-01, L-04); loginLimiter lowered 20→10 (L-02); removed getAllUsersService and getAllUsersController dead code (L-03); removed /loggedin-user alias route (I-01); updated .env.sample to match .env structure
 - 2026-05-06 — Security & bug audit fixes: removed GET /user/ (all users) and demo routes; added helmet, cookie-parser, express-rate-limit; wired missing auth validation schemas; fixed optionalAuth suspended check + console.error; normalized email lowercase in all schemas; US phone validation; password letter requirement; crypto.randomBytes for TnxId; cookie maxAge derived from config; JWT access default changed 15d→15m; removed try-catch from application.service.ts
 - 2026-05-05 — Fixed all 11 issues from ISSUE.md: await bug (wallet), double lock check (auth), JWT fail-fast + CORS from env (config), payment status regression (payment service), missing return redirect (payment controller), soft-delete filter (user service), console.log removal (task service), ResponseHandler migration (payment controller), bcrypt rounds 10→12 (user service), removed pervasive try-catch wrappers across all service files
 - 2026-05-05 — Full codebase audit for v1: fixed AGENTS.md (env vars, field names, routes, service map); created issues/ISSUE.md; added issues/ to .gitignore
@@ -101,7 +102,7 @@ src/
     createTnxId.ts            # createTnxId(prefix) — generates prefixed IDs, e.g., "TNX-...", "WTNX-..."
     query.ts                  # parseQuery(), buildPrismaQuery(), buildMeta() — unified pagination/sort/filter/search utilities
     sendEmail.ts              # sendEmail(to, subject, html) — Nodemailer dispatch
-    time.ts                   # getTimeRemaining(date) — returns { minutes, seconds } remaining to a future date
+    time.ts                   # getTimeRemaining(date), parseExpiryToMs(expiry) — time utilities
     index.ts                  # Re-exports: ResponseHandler, sendResponse, sendEmail, AppError, asyncHandler, createToken
 ```
 
@@ -174,7 +175,7 @@ See `api-contracts/api-contract-auth.md` for full token shapes, cookie details, 
 - **JWT payload:** `{ userId, email, name, role: UserRole, profileStatus, emailVerified }`
 - **`auth()` middleware:** verifies token → fetches user from DB → attaches to `req.user`. Throws 401 for missing/invalid/expired token or suspended account.
 - **`optionalAuth()` middleware:** same flow but does not throw if no token — used on public endpoints that show owner-specific context when authenticated
-- **Account locking:** `User.failedLoginCount` incremented on bad password. Locks after **5 failed attempts** (`failedLoginCount >= 5`); lock auto-expires after 15 minutes
+- **Account locking:** `User.failedLoginCount` incremented on bad password. Locks after **5 failed attempts** (`failedLoginCount + 1 >= 5`); lock auto-expires after 15 minutes
 - **Email verification:** `POST /auth/send-verification-email` → email with raw token → `POST /auth/verify-email` with that token
 - **Password reset:** `POST /auth/forgot-password` → email link to `FRONTEND_URL/reset-password?token=<token>&email=<email>` (token expires in 15 min) → `POST /auth/reset-password`
 
@@ -192,7 +193,6 @@ Full request/response contracts are in `api-contracts/` — see `api-contracts/i
 | POST   | `/logout`                  | —    | Clears refresh token cookie        |
 | POST   | `/refresh-token`           | —    | Issues new access + refresh tokens |
 | GET    | `/current-user`            | JWT  | Get authenticated user             |
-| GET    | `/loggedin-user`           | JWT  | Alias for `/current-user`          |
 | POST   | `/update-password`         | JWT  | Change password (CREDENTIALS only) |
 | POST   | `/forgot-password`         | —    | Send password reset email          |
 | POST   | `/reset-password`          | —    | Reset password with token          |
@@ -336,6 +336,6 @@ All loaded in `src/config/index.ts`.
 - **Prisma `omit` for field exclusion:** Sensitive fields removed at query time via `omit` rather than post-query deletion. Constants defined per-module in `.constant.ts`.
 - **Dual token delivery:** Refresh token returned both in response body and as httpOnly cookie — body copy for mobile/native clients that manage cookies manually.
 - **SSLCommerz callbacks:** `payment.dummy.service.ts` has been removed; real `validateOnlinePaymentService` in `payment.service.ts` now handles IPN validation and success/fail/cancel redirect callbacks.
-- **Account lock threshold:** Locks after 5 failed login attempts (`failedLoginCount >= 5` in `incrementFailedLoginCount`). Lock auto-expires after 15 minutes — checked at login time in `loginUserService`.
+- **Account lock threshold:** Locks after 5 failed login attempts (`failedLoginCount + 1 >= 5` in `incrementFailedLoginCount`). Lock auto-expires after 15 minutes — checked at login time in `loginUserService`.
 - **Single baseline migration:** Only one migration (`20260410233707_init`) exists. All schema history is in the initial migration.
 - **No test infrastructure:** No test runner configured. `npm test` exits with error code 1.

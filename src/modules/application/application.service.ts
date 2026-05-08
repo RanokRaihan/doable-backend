@@ -366,20 +366,19 @@ const approveApplicationService = async (
     throw new AppError(400, "Task is no longer open");
   }
 
-  const alreadyApprovedApplication = await prisma.application.findFirst({
-    where: {
-      taskId: application.taskId,
-      status: "APPROVED",
-    },
-  });
+  const updatedApplication = await prisma.$transaction(async (tx) => {
+    const alreadyApprovedApplication = await tx.application.findFirst({
+      where: {
+        taskId: application.taskId,
+        status: "APPROVED",
+      },
+    });
 
-  if (alreadyApprovedApplication) {
-    throw new AppError(400, "This task already has an approved application");
-  }
+    if (alreadyApprovedApplication) {
+      throw new AppError(400, "This task already has an approved application");
+    }
 
-  let updatedApplication;
-  await prisma.$transaction(async (tx) => {
-    updatedApplication = await tx.application.update({
+    const app = await tx.application.update({
       where: { id: applicationId },
       data: { status: "APPROVED" },
     });
@@ -405,11 +404,10 @@ const approveApplicationService = async (
         agreedCompensation: application.proposedCompensation,
       },
     });
+
+    return app;
   });
 
-  if (!updatedApplication) {
-    throw new AppError(500, "Failed to approve application");
-  }
   return updatedApplication;
 };
 

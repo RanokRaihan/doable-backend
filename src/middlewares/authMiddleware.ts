@@ -38,11 +38,8 @@ export const auth = asyncHandler(
       throw new AppError(HTTP_STATUS.UNAUTHORIZED, ERROR_MESSAGES.UNAUTHORIZED);
     }
 
-    // Get user and validate existence
+    // Get user and validate existence (getAuthUser throws 401 if not found)
     const user = await getAuthUser(decoded.userId);
-    if (!user || user.isDeleted) {
-      throw new AppError(HTTP_STATUS.NOT_FOUND, ERROR_MESSAGES.USER_NOT_FOUND);
-    }
 
     // Check account status
     if (user.profileStatus === "SUSPENDED") {

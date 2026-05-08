@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many login attempts, please try again after 15 minutes" },
@@ -42,8 +42,26 @@ const forgotPasswordLimiter = rateLimit({
   message: { success: false, message: "Too many requests, please try again after an hour" },
 });
 
+const refreshTokenLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many requests, please try again after 15 minutes" },
+});
+
+const sendVerificationEmailLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many requests, please try again after an hour" },
+});
+
 app.use("/api/v1/auth/login", loginLimiter);
 app.use("/api/v1/auth/forgot-password", forgotPasswordLimiter);
+app.use("/api/v1/auth/refresh-token", refreshTokenLimiter);
+app.use("/api/v1/auth/send-verification-email", sendVerificationEmailLimiter);
 
 // all routes
 app.use("/api/v1", router);
