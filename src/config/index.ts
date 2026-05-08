@@ -51,24 +51,27 @@ interface Config {
   };
 }
 
+const appUrl = process.env.APP_URL || "http://localhost:8000";
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+
 const config: Config = {
   databaseUrl: process.env.DATABASE_URL!,
   port: Number(process.env.PORT) || 5000,
   nodeEnv: process.env.NODE_ENV || "development",
-  appUrl: process.env.APP_URL || "http://localhost:8000",
-  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
+  appUrl,
+  frontendUrl,
   // CORS origin — supports comma-separated list for multiple allowed origins
   corsOrigin: process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.includes(",")
       ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
       : process.env.CORS_ORIGIN
-    : process.env.FRONTEND_URL || "http://localhost:3000",
+    : frontendUrl,
   commissionRate: Number(process.env.COMMISSION_RATE) || 0.15,
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET!,
     refreshSecret: process.env.JWT_REFRESH_SECRET!,
-    accessExpiresIn: process.env.JWT_EXPIRES_IN || "15m",
-    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
+    accessExpiresIn: process.env.JWT_EXPIRES_IN || "1h",
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   },
   smtp: {
     host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -80,13 +83,13 @@ const config: Config = {
   sslcommerz: {
     storeId: process.env.STORE_ID || "",
     storePassword: process.env.STORE_PASSWORD || "",
-    successUrl: process.env.SUCCESS_URL || "",
-    failUrl: process.env.FAIL_URL || "",
-    cancelUrl: process.env.CANCEL_URL || "",
-    successUrlFrontend: process.env.SUCCESS_URL_FRONTEND || "",
-    failUrlFrontend: process.env.FAIL_URL_FRONTEND || "",
-    cancelUrlFrontend: process.env.CANCEL_URL_FRONTEND || "",
-    ipnUrl: process.env.IPN_URL || "",
+    successUrl: `${appUrl}/api/v1/payment/success`,
+    failUrl: `${appUrl}/api/v1/payment/fail`,
+    cancelUrl: `${appUrl}/api/v1/payment/cancel`,
+    successUrlFrontend: `${frontendUrl}/profile/payments/success`,
+    failUrlFrontend: `${frontendUrl}/profile/payments/fail`,
+    cancelUrlFrontend: `${frontendUrl}/profile/payments/cancel`,
+    ipnUrl: `${frontendUrl}/profile/payments/ipn`,
     gatewayBaseUrl: process.env.GATEWAY_BASE_URL || "",
     validationApiUrl: process.env.VALIDATION_API_URL || "",
   },
