@@ -178,7 +178,7 @@ const setDefaultWithdrawalMethodService = async (
 
 const deleteWithdrawalMethodService = async (userId: string, id: string) => {
   const method = await prisma.withdrawalMethod.findUnique({
-    where: { id },
+    where: { id, isActive: true },
     include: { wallet: true },
   });
   if (!method) throw new AppError(404, "Withdrawal method not found");
@@ -223,8 +223,7 @@ const createWithdrawalRequestService = async (
       isActive: true,
     },
   });
-  if (!method)
-    throw new AppError(404, "Withdrawal method not found or inactive");
+  if (!method) throw new AppError(404, "Withdrawal method not found ");
 
   if (Number(user.wallet.balance) < payload.amount)
     throw new AppError(400, "Insufficient wallet balance for this withdrawal");
