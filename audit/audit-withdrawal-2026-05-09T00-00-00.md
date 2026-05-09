@@ -3,22 +3,24 @@
 Scope: `src/modules/withdrawal/` only (all 6 files).  
 Files read: `withdrawal.route.ts`, `withdrawal.controller.ts`, `withdrawal.service.ts`, `withdrawal.validator.ts`, `withdrawal.interface.ts`, `withdrawal.constant.ts`
 
+**Resolution status (2026-05-09):** All HIGH and MEDIUM findings fixed. L-02 through L-07 fixed. L-01, I-01, I-02 deferred (out of scope for this pass). I-03 and L-07 were already fixed prior to this audit.
+
 ---
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| High     | 3     |
-| Medium   | 4     |
-| Low      | 7     |
-| Info     | 3     |
+| Severity | Count | Fixed |
+|----------|-------|-------|
+| High     | 3     | 3     |
+| Medium   | 4     | 4     |
+| Low      | 7     | 5 (L-02–L-06); L-01 deferred; L-07 pre-fixed |
+| Info     | 3     | 1 (I-03 pre-fixed); I-01, I-02 deferred |
 
 ---
 
 ## HIGH
 
-### H-01 — TOCTOU Race Condition in `createWithdrawalRequestService`
+### H-01 — TOCTOU Race Condition in `createWithdrawalRequestService` ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.service.ts:229, 232–264`
 
 The balance sufficiency check runs outside the `$transaction`, then the debit happens inside it. Under concurrent requests, two callers can both pass the check against the same stale balance and both have their debits applied, driving the wallet balance negative.
@@ -42,7 +44,7 @@ const result = await prisma.$transaction(async (tx) => {
 
 ---
 
-### H-02 — Wallet Object Leaked in GET-by-ID Responses
+### H-02 — Wallet Object Leaked in GET-by-ID Responses ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.service.ts:84–95, 305–317`
 
 `getWithdrawalMethodByIdService` and `getWithdrawalRequestByIdService` both include the full `wallet` relation for the ownership check and return the Prisma result directly. The wallet object — including `balance`, `userId`, and internal IDs — is sent to the client.
@@ -67,7 +69,7 @@ return request;
 
 ---
 
-### H-03 — `getWithdrawalMethodByIdService` Returns Soft-Deleted Methods
+### H-03 — `getWithdrawalMethodByIdService` Returns Soft-Deleted Methods ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.service.ts:84–95`
 
 The `findUnique` has no `isActive` filter. A user who knows the ID of a previously deleted withdrawal method can retrieve its full record. The list endpoint (`getMyWithdrawalMethodsService`) correctly enforces `isActive: true`; the by-ID endpoint does not, creating an inconsistency and information disclosure.
@@ -85,7 +87,7 @@ const method = await prisma.withdrawalMethod.findUnique({
 
 ## MEDIUM
 
-### M-01 — Default-Unset + Create Not Atomic in `createWithdrawalMethodService`
+### M-01 — Default-Unset + Create Not Atomic in `createWithdrawalMethodService` ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.service.ts:30–48`
 
 When `isDefault: true` is passed on creation, two separate Prisma calls are made — an `updateMany` to clear existing defaults and a `create`. These are not wrapped in a `$transaction`. Under concurrent requests, both could unset defaults simultaneously and create two default methods.
@@ -100,7 +102,7 @@ const method = await prisma.withdrawalMethod.create({ data: { ..., isDefault: tr
 
 ---
 
-### M-02 — Default-Unset + Update Not Atomic in `updateWithdrawalMethodService`
+### M-02 — Default-Unset + Update Not Atomic in `updateWithdrawalMethodService` ✅ FIXED (via L-04)
 **File:** `src/modules/withdrawal/withdrawal.service.ts:114–142`
 
 Same problem as M-01: when `payload.isDefault === true`, the `updateMany` to clear other defaults and the `update` on the target method are separate calls outside a transaction.
@@ -116,7 +118,7 @@ const updated = await prisma.withdrawalMethod.update(...);  // not in a tx
 
 ---
 
-### M-03 — Pending-Check + Soft-Delete Not Atomic in `deleteWithdrawalMethodService`
+### M-03 — Pending-Check + Soft-Delete Not Atomic in `deleteWithdrawalMethodService` ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.service.ts:191–204`
 
 The check for pending withdrawal requests and the soft-delete are two separate operations. A withdrawal request could be created against this method in the gap between the count check and the `update` to `isActive: false`, violating the invariant that a method with pending requests cannot be deleted.
@@ -132,7 +134,7 @@ const updated = await prisma.withdrawalMethod.update({ data: { isActive: false, 
 
 ---
 
-### M-04 — TOCTOU Race Condition in `editWithdrawalRequestService`
+### M-04 — TOCTOU Race Condition in `editWithdrawalRequestService` ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.service.ts:337–377`
 
 Same category as H-01. The available-balance check is performed outside the transaction:
@@ -156,7 +158,7 @@ Under concurrent edits or a concurrent withdrawal request, the balance seen in `
 
 ## LOW
 
-### L-01 — All Controllers Use Deprecated `sendResponse()` Instead of `ResponseHandler`
+### L-01 — All Controllers Use Deprecated `sendResponse()` Instead of `ResponseHandler` ⏭ DEFERRED
 **File:** `src/modules/withdrawal/withdrawal.controller.ts` (all 11 controllers)
 
 Every controller calls `sendResponse(res, statusCode, message, data)`, which is the legacy utility. `CLAUDE.md` explicitly prohibits this and requires `ResponseHandler` static methods (`ResponseHandler.ok`, `ResponseHandler.created`, etc.).
@@ -175,7 +177,7 @@ Also update the import to use `ResponseHandler` from `../../utils` instead of `s
 
 ---
 
-### L-02 — `isActive` Exposed as Filterable Field but Silently Overridden
+### L-02 — `isActive` Exposed as Filterable Field but Silently Overridden ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.constant.ts:2`
 
 `withdrawalMethodFilterableFields = ["methodType", "isActive"]` exposes `isActive` as a query filter. However, `getMyWithdrawalMethodsService` hardcodes `isActive: true` in the merged `where` last, so any client-supplied `isActive` value is always overridden. The filter has no effect and gives a false impression of control.
@@ -184,7 +186,7 @@ Also update the import to use `ResponseHandler` from `../../utils` instead of `s
 
 ---
 
-### L-03 — `WithdrawalMethodType` Manually Redefined Instead of Using Prisma Enum
+### L-03 — `WithdrawalMethodType` Manually Redefined Instead of Using Prisma Enum ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.interface.ts:1`
 
 ```ts
@@ -197,7 +199,7 @@ type WithdrawalMethodType = "BANK" | "MOBILE_BANKING";
 
 ---
 
-### L-04 — `isDefault` Settable via General Update Endpoint Bypasses Safe Path
+### L-04 — `isDefault` Settable via General Update Endpoint Bypasses Safe Path ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.validator.ts:37`, `withdrawal.service.ts:114–142`
 
 The `updateWithdrawalMethodSchema` allows `isDefault: boolean`. Setting `isDefault: true` via `PATCH /my-methods/:id` uses non-atomic logic (M-02), while the dedicated `PATCH /my-methods/:id/set-default` endpoint is fully atomic. Having two paths for the same state transition, with different safety properties, is a code quality and correctness risk.
@@ -206,7 +208,7 @@ The `updateWithdrawalMethodSchema` allows `isDefault: boolean`. Setting `isDefau
 
 ---
 
-### L-05 — `cancellationReason` Accepts Empty String
+### L-05 — `cancellationReason` Accepts Empty String ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.validator.ts:95`
 
 ```ts
@@ -219,7 +221,7 @@ An empty string `""` passes validation. If present, a reason string should conta
 
 ---
 
-### L-06 — Financial String Fields Lack `.trim()` and Format Normalization
+### L-06 — Financial String Fields Lack `.trim()` and Format Normalization ✅ FIXED
 **File:** `src/modules/withdrawal/withdrawal.validator.ts:6–10`
 
 `accountNumber`, `accountName`, `bankName`, `branchName`, and `routingNumber` accept any string including leading/trailing whitespace. Storing untrimmed financial identifiers causes silent mismatches (e.g., `"123456"` vs `" 123456"`).
@@ -235,7 +237,7 @@ routingNumber: z.string().max(50).trim().optional(),
 
 ---
 
-### L-07 — `deleteWithdrawalMethodService` Silently Succeeds on Already-Deleted Methods
+### L-07 — `deleteWithdrawalMethodService` Silently Succeeds on Already-Deleted Methods ✅ PRE-FIXED
 **File:** `src/modules/withdrawal/withdrawal.service.ts:180–204`
 
 The initial `findUnique` has no `isActive` filter. If a method is already inactive, the service still finds it, passes all checks, runs the no-op `update`, and returns 200. The caller gets a success response for deleting something that was already deleted. The update endpoint (`updateWithdrawalMethodService`) correctly uses `{ id, isActive: true }` in its lookup.
@@ -246,7 +248,7 @@ The initial `findUnique` has no `isActive` filter. If a method is already inacti
 
 ## INFO
 
-### I-01 — No Rate Limiting on `POST /my-requests`
+### I-01 — No Rate Limiting on `POST /my-requests` ⏭ DEFERRED
 **File:** `src/modules/withdrawal/withdrawal.route.ts:77–83`
 
 The withdrawal request creation endpoint has no rate limiter. While the balance check prevents actual over-withdrawal, a user could spam the endpoint causing repeated DB reads and writes (user lookup, wallet read, method lookup, balance check). Other sensitive endpoints (login, refresh, email verification) have rate limiters.
@@ -255,7 +257,7 @@ The withdrawal request creation endpoint has no rate limiter. While the balance 
 
 ---
 
-### I-02 — List Endpoints Lack Query Validation Schemas
+### I-02 — List Endpoints Lack Query Validation Schemas ⏭ DEFERRED
 **File:** `src/modules/withdrawal/withdrawal.route.ts:40–45, 84–89`
 
 `GET /my-methods` and `GET /my-requests` have no `validateRequest` middleware for query params (`sort`, `filter`, `page`, `limit`). The `buildPrismaQuery` utility guards against unknown sort/filter fields, but there is no validation for out-of-range or malformed `page`/`limit` values at the route layer. Other modules (task, wallet) define `getAllX` schemas for this purpose.
@@ -264,7 +266,7 @@ The withdrawal request creation endpoint has no rate limiter. While the balance 
 
 ---
 
-### I-03 — No Cap on Withdrawal Methods Per Wallet
+### I-03 — No Cap on Withdrawal Methods Per Wallet ✅ PRE-FIXED
 **File:** `src/modules/withdrawal/withdrawal.service.ts:20–50`
 
 There is no upper bound on how many withdrawal methods a user can create. Unlimited creates are allowed. This is a minor DoS vector and a data hygiene concern.

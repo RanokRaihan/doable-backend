@@ -3,8 +3,6 @@ import { AppError } from "../../utils";
 import { createTnxId } from "../../utils/createTnxId";
 import { buildMeta, buildPrismaQuery, ParsedQuery } from "../../utils/query";
 import {
-  withdrawalMethodFilterableFields,
-  withdrawalMethodSortableFields,
   withdrawalRequestFilterableFields,
   withdrawalRequestSortableFields,
 } from "./withdrawal.constant";
@@ -27,63 +25,55 @@ const createWithdrawalMethodService = async (
   });
   if (!user?.wallet) throw new AppError(404, "Wallet not found");
 
-  if (payload.isDefault) {
-    await prisma.withdrawalMethod.updateMany({
-      where: { walletId: user.wallet.id, isDefault: true },
-      data: { isDefault: false },
-    });
-  }
+  const methodCount = await prisma.withdrawalMethod.count({
+    where: { walletId: user.wallet.id, isActive: true },
+  });
+  if (methodCount >= 5)
+    throw new AppError(400, "You can have at most 5 withdrawal methods");
 
-  const method = await prisma.withdrawalMethod.create({
-    data: {
-      walletId: user.wallet.id,
-      methodType: payload.methodType,
-      accountNumber: payload.accountNumber,
-      accountName: payload.accountName,
-      bankName: payload.bankName ?? null,
-      branchName: payload.branchName ?? null,
-      routingNumber: payload.routingNumber ?? null,
-      isDefault: payload.isDefault ?? false,
-    },
+  const method = await prisma.$transaction(async (tx) => {
+    if (payload.isDefault) {
+      await tx.withdrawalMethod.updateMany({
+        where: { walletId: user.wallet!.id, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    return tx.withdrawalMethod.create({
+      data: {
+        walletId: user.wallet!.id,
+        methodType: payload.methodType,
+        accountNumber: payload.accountNumber,
+        accountName: payload.accountName,
+        bankName: payload.bankName ?? null,
+        branchName: payload.branchName ?? null,
+        routingNumber: payload.routingNumber ?? null,
+        isDefault: payload.isDefault ?? false,
+      },
+      omit: { isActive: true },
+    });
   });
   return method;
 };
 
-const getMyWithdrawalMethodsService = async (
-  userId: string,
-  parsedQuery: ParsedQuery,
-) => {
+const getMyWithdrawalMethodsService = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId, isDeleted: false },
     include: { wallet: true },
   });
   if (!user?.wallet) throw new AppError(404, "Wallet not found");
 
-  const { where, skip, take, orderBy } = buildPrismaQuery(parsedQuery, {
-    sortFields: withdrawalMethodSortableFields,
-    filterFields: withdrawalMethodFilterableFields,
+  const methods = await prisma.withdrawalMethod.findMany({
+    where: { walletId: user.wallet.id, isActive: true },
+    omit: { isActive: true },
   });
 
-  const mergedWhere = { ...where, walletId: user.wallet.id, isActive: true };
-
-  const queryOptions: Parameters<typeof prisma.withdrawalMethod.findMany>[0] = {
-    where: mergedWhere,
-    skip,
-    take,
-  };
-  if (orderBy) queryOptions.orderBy = orderBy;
-
-  const [methods, totalCount] = await Promise.all([
-    prisma.withdrawalMethod.findMany(queryOptions),
-    prisma.withdrawalMethod.count({ where: mergedWhere }),
-  ]);
-
-  return { data: methods, meta: buildMeta(totalCount, parsedQuery.pagination) };
+  return methods;
 };
 
 const getWithdrawalMethodByIdService = async (userId: string, id: string) => {
   const method = await prisma.withdrawalMethod.findUnique({
-    where: { id },
+    where: { id, isActive: true },
     include: { wallet: true },
   });
   if (!method) throw new AppError(404, "Withdrawal method not found");
@@ -92,7 +82,8 @@ const getWithdrawalMethodByIdService = async (userId: string, id: string) => {
       403,
       "You are not authorized to view this withdrawal method",
     );
-  return method;
+  const { wallet: _wallet, ...methodWithoutWallet } = method;
+  return methodWithoutWallet;
 };
 
 const updateWithdrawalMethodService = async (
@@ -110,13 +101,6 @@ const updateWithdrawalMethodService = async (
       403,
       "You are not authorized to update this withdrawal method",
     );
-
-  if (payload.isDefault) {
-    await prisma.withdrawalMethod.updateMany({
-      where: { walletId: method.walletId, isDefault: true, id: { not: id } },
-      data: { isDefault: false },
-    });
-  }
 
   const updated = await prisma.withdrawalMethod.update({
     where: { id },
@@ -137,7 +121,6 @@ const updateWithdrawalMethodService = async (
       ...(payload.routingNumber !== undefined && {
         routingNumber: payload.routingNumber,
       }),
-      ...(payload.isDefault !== undefined && { isDefault: payload.isDefault }),
     },
   });
   return updated;
@@ -148,7 +131,7 @@ const setDefaultWithdrawalMethodService = async (
   id: string,
 ) => {
   const method = await prisma.withdrawalMethod.findUnique({
-    where: { id },
+    where: { id, isActive: true },
     include: { wallet: true },
   });
   if (!method) throw new AppError(404, "Withdrawal method not found");
@@ -156,11 +139,6 @@ const setDefaultWithdrawalMethodService = async (
     throw new AppError(
       403,
       "You are not authorized to modify this withdrawal method",
-    );
-  if (!method.isActive)
-    throw new AppError(
-      400,
-      "Cannot set a deleted withdrawal method as default",
     );
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -171,6 +149,7 @@ const setDefaultWithdrawalMethodService = async (
     return tx.withdrawalMethod.update({
       where: { id },
       data: { isDefault: true },
+      omit: { isActive: true },
     });
   });
   return updated;
@@ -188,18 +167,21 @@ const deleteWithdrawalMethodService = async (userId: string, id: string) => {
       "You are not authorized to delete this withdrawal method",
     );
 
-  const pendingCount = await prisma.withdrawalRequest.count({
-    where: { withdrawalMethodId: id, status: "PENDING" },
-  });
-  if (pendingCount > 0)
-    throw new AppError(
-      400,
-      "Cannot delete a withdrawal method with pending requests",
-    );
+  const updated = await prisma.$transaction(async (tx) => {
+    const pendingCount = await tx.withdrawalRequest.count({
+      where: { withdrawalMethodId: id, status: "PENDING" },
+    });
+    if (pendingCount > 0)
+      throw new AppError(
+        400,
+        "Cannot delete a withdrawal method with pending requests",
+      );
 
-  const updated = await prisma.withdrawalMethod.update({
-    where: { id },
-    data: { isActive: false, isDefault: false },
+    return tx.withdrawalMethod.update({
+      where: { id },
+      data: { isActive: false, isDefault: false },
+      omit: { isActive: true },
+    });
   });
   return updated;
 };
@@ -225,12 +207,27 @@ const createWithdrawalRequestService = async (
   });
   if (!method) throw new AppError(404, "Withdrawal method not found ");
 
-  if (Number(user.wallet.balance) < payload.amount)
-    throw new AppError(400, "Insufficient wallet balance for this withdrawal");
-
   const result = await prisma.$transaction(async (tx) => {
-    const updatedWallet = await tx.wallet.update({
+    const existingPendingCount = await tx.withdrawalRequest.count({
+      where: { walletId: user.wallet!.id, status: "PENDING" },
+    });
+    if (existingPendingCount >= 3)
+      throw new AppError(
+        400,
+        "you already have 3 pending withdrawal requests. Please wait for them to be processed before creating new ones.",
+      );
+    const wallet = await tx.wallet.findUniqueOrThrow({
       where: { id: user.wallet!.id },
+    });
+
+    if (Number(wallet.balance) < payload.amount)
+      throw new AppError(
+        400,
+        "Insufficient wallet balance for this withdrawal",
+      );
+
+    const updatedWallet = await tx.wallet.update({
+      where: { id: wallet.id },
       data: { balance: { decrement: payload.amount } },
     });
 
@@ -238,28 +235,36 @@ const createWithdrawalRequestService = async (
     const walletTxn = await tx.walletTransaction.create({
       data: {
         transactionId: tnxId,
-        walletId: user.wallet!.id,
+        walletId: wallet.id,
         amount: payload.amount,
         type: "DEBIT",
         category: "WITHDRAWAL",
         status: "PENDING",
         description: `Withdrawal request initiated`,
-        balanceBefore: user.wallet!.balance,
+        balanceBefore: wallet.balance,
         balanceAfter: updatedWallet.balance,
       },
     });
 
-    const request = await tx.withdrawalRequest.create({
+    return tx.withdrawalRequest.create({
       data: {
-        walletId: user.wallet!.id,
+        walletId: wallet.id,
         withdrawalMethodId: payload.withdrawalMethodId,
         amount: payload.amount,
         note: payload.note ?? null,
         refWalletTnxId: walletTxn.id,
       },
-      include: { withdrawalMethod: true },
+
+      select: {
+        id: true,
+        amount: true,
+        note: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        withdrawalMethod: { omit: { isActive: true } },
+      },
     });
-    return request;
   });
   return result;
 };
@@ -286,7 +291,8 @@ const getMyWithdrawalRequestsService = async (
       where: mergedWhere,
       skip,
       take,
-      include: { withdrawalMethod: true },
+      include: { withdrawalMethod: { omit: { isActive: true } } },
+      omit: { rejectedBy: true },
     };
   if (orderBy) queryOptions.orderBy = orderBy;
 
@@ -304,7 +310,8 @@ const getMyWithdrawalRequestsService = async (
 const getWithdrawalRequestByIdService = async (userId: string, id: string) => {
   const request = await prisma.withdrawalRequest.findUnique({
     where: { id },
-    include: { wallet: true, withdrawalMethod: true },
+    include: { wallet: true, withdrawalMethod: { omit: { isActive: true } } },
+    omit: { rejectedBy: true },
   });
   if (!request) throw new AppError(404, "Withdrawal request not found");
   if (request.wallet.userId !== userId)
@@ -312,7 +319,8 @@ const getWithdrawalRequestByIdService = async (userId: string, id: string) => {
       403,
       "You are not authorized to view this withdrawal request",
     );
-  return request;
+  const { wallet: _wallet, ...requestWithoutWallet } = request;
+  return requestWithoutWallet;
 };
 
 const editWithdrawalRequestService = async (
@@ -337,18 +345,21 @@ const editWithdrawalRequestService = async (
     payload.amount !== undefined &&
     payload.amount !== Number(request.amount)
   ) {
-    const available = Number(request.wallet.balance) + Number(request.amount);
-    if (payload.amount > available)
-      throw new AppError(
-        400,
-        "Insufficient wallet balance for the updated amount",
-      );
-
     const diff = payload.amount - Number(request.amount);
-
     const newAmount = payload.amount;
 
     const updated = await prisma.$transaction(async (tx) => {
+      const wallet = await tx.wallet.findUniqueOrThrow({
+        where: { id: request.walletId },
+      });
+
+      const available = Number(wallet.balance) + Number(request.amount);
+      if (newAmount > available)
+        throw new AppError(
+          400,
+          "Insufficient wallet balance for the updated amount",
+        );
+
       const updatedWallet = await tx.wallet.update({
         where: { id: request.walletId },
         data: { balance: { decrement: diff } },
@@ -370,7 +381,8 @@ const editWithdrawalRequestService = async (
           amount: newAmount,
           ...(payload.note !== undefined && { note: payload.note }),
         },
-        include: { withdrawalMethod: true },
+        include: { withdrawalMethod: { omit: { isActive: true } } },
+        omit: { rejectedBy: true },
       });
     });
     return updated;
@@ -387,7 +399,7 @@ const editWithdrawalRequestService = async (
 const cancelWithdrawalRequestService = async (
   userId: string,
   id: string,
-  cancellationReason?: string,
+  cancellationReason: string,
 ) => {
   const request = await prisma.withdrawalRequest.findUnique({
     where: { id },
@@ -423,9 +435,10 @@ const cancelWithdrawalRequestService = async (
       data: {
         status: "CANCELLED",
         cancelledAt: new Date(),
-        cancellationReason: cancellationReason ?? null,
+        cancellationReason: cancellationReason,
       },
-      include: { withdrawalMethod: true },
+      include: { withdrawalMethod: { omit: { isActive: true } } },
+      omit: { rejectedBy: true },
     });
   });
   return updated;

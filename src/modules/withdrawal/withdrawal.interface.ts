@@ -1,4 +1,4 @@
-type WithdrawalMethodType = "BANK" | "MOBILE_BANKING";
+import { WithdrawalMethodType } from "../../generated/prisma/enums";
 
 interface ICreateWithdrawalMethodPayload {
   methodType: WithdrawalMethodType;
@@ -17,7 +17,6 @@ interface IUpdateWithdrawalMethodPayload {
   bankName?: string;
   branchName?: string;
   routingNumber?: string;
-  isDefault?: boolean;
 }
 
 interface ICreateWithdrawalRequestPayload {

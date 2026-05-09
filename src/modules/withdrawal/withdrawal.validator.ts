@@ -3,11 +3,11 @@ import { z } from "zod";
 const withdrawalMethodBody = z
   .object({
     methodType: z.enum(["BANK", "MOBILE_BANKING"]),
-    accountNumber: z.string().min(1).max(50),
-    accountName: z.string().min(1).max(100),
-    bankName: z.string().max(100).optional(),
-    branchName: z.string().max(100).optional(),
-    routingNumber: z.string().max(50).optional(),
+    accountNumber: z.string().min(1).max(50).trim(),
+    accountName: z.string().min(1).max(100).trim(),
+    bankName: z.string().max(100).trim().optional(),
+    branchName: z.string().max(100).trim().optional(),
+    routingNumber: z.string().max(50).trim().optional(),
     isDefault: z.boolean().optional(),
   })
   .strict()
@@ -29,12 +29,11 @@ const updateWithdrawalMethodSchema = z.object({
   body: z
     .object({
       methodType: z.enum(["BANK", "MOBILE_BANKING"]).optional(),
-      accountNumber: z.string().min(1).max(50).optional(),
-      accountName: z.string().min(1).max(100).optional(),
-      bankName: z.string().max(100).optional(),
-      branchName: z.string().max(100).optional(),
-      routingNumber: z.string().max(50).optional(),
-      isDefault: z.boolean().optional(),
+      accountNumber: z.string().min(1).max(50).trim().optional(),
+      accountName: z.string().min(1).max(100).trim().optional(),
+      bankName: z.string().max(100).trim().optional(),
+      branchName: z.string().max(100).trim().optional(),
+      routingNumber: z.string().max(50).trim().optional(),
     })
     .strict()
     .superRefine((data, ctx) => {
@@ -92,7 +91,7 @@ const editWithdrawalRequestSchema = z.object({
 const cancelWithdrawalRequestSchema = z.object({
   body: z
     .object({
-      cancellationReason: z.string().max(500).optional(),
+      cancellationReason: z.string().min(1).max(500),
     })
     .strict(),
   params: z.object({ id: z.string().min(1) }),

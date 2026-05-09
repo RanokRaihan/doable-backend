@@ -26,15 +26,17 @@ const createWithdrawalMethodController: RequestHandler = asyncHandler(
 
 const getMyWithdrawalMethodsController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const parsedQuery = parseQuery(req);
-    const result = await getMyWithdrawalMethodsService(req.user!.id, parsedQuery);
+    const result = await getMyWithdrawalMethodsService(req.user!.id);
     sendResponse(res, 200, "Withdrawal methods fetched successfully", result);
   },
 );
 
 const getWithdrawalMethodByIdController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const method = await getWithdrawalMethodByIdService(req.user!.id, req.params["id"]!);
+    const method = await getWithdrawalMethodByIdService(
+      req.user!.id,
+      req.params["id"]!,
+    );
     sendResponse(res, 200, "Withdrawal method fetched successfully", method);
   },
 );
@@ -56,13 +58,21 @@ const setDefaultWithdrawalMethodController: RequestHandler = asyncHandler(
       req.user!.id,
       req.params["id"]!,
     );
-    sendResponse(res, 200, "Default withdrawal method set successfully", method);
+    sendResponse(
+      res,
+      200,
+      "Default withdrawal method set successfully",
+      method,
+    );
   },
 );
 
 const deleteWithdrawalMethodController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const method = await deleteWithdrawalMethodService(req.user!.id, req.params["id"]!);
+    const method = await deleteWithdrawalMethodService(
+      req.user!.id,
+      req.params["id"]!,
+    );
     sendResponse(res, 200, "Withdrawal method deleted successfully", method);
   },
 );
@@ -71,7 +81,10 @@ const deleteWithdrawalMethodController: RequestHandler = asyncHandler(
 
 const createWithdrawalRequestController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const request = await createWithdrawalRequestService(req.user!.id, req.body);
+    const request = await createWithdrawalRequestService(
+      req.user!.id,
+      req.body,
+    );
     sendResponse(res, 201, "Withdrawal request created successfully", request);
   },
 );
@@ -79,7 +92,10 @@ const createWithdrawalRequestController: RequestHandler = asyncHandler(
 const getMyWithdrawalRequestsController: RequestHandler = asyncHandler(
   async (req, res) => {
     const parsedQuery = parseQuery(req);
-    const result = await getMyWithdrawalRequestsService(req.user!.id, parsedQuery);
+    const result = await getMyWithdrawalRequestsService(
+      req.user!.id,
+      parsedQuery,
+    );
     sendResponse(res, 200, "Withdrawal requests fetched successfully", result);
   },
 );
@@ -107,13 +123,18 @@ const editWithdrawalRequestController: RequestHandler = asyncHandler(
 
 const cancelWithdrawalRequestController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const { cancellationReason } = req.body as { cancellationReason?: string };
+    const { cancellationReason } = req.body as { cancellationReason: string };
     const request = await cancelWithdrawalRequestService(
       req.user!.id,
       req.params["id"]!,
       cancellationReason,
     );
-    sendResponse(res, 200, "Withdrawal request cancelled successfully", request);
+    sendResponse(
+      res,
+      200,
+      "Withdrawal request cancelled successfully",
+      request,
+    );
   },
 );
 

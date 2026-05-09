@@ -128,11 +128,13 @@ Returns only `isActive: true` methods. Supports pagination (`page`, `limit`), so
 
 ### `GET /my-methods/:id`
 
-**Response `data`:** Full `WithdrawalMethod` including nested `wallet` object.
+Only returns active (non-deleted) methods.
+
+**Response `data`:** Full `WithdrawalMethod` object.
 
 **Errors:**
 - `403` — Method does not belong to the authenticated user
-- `404` — Method not found
+- `404` — Method not found (or method is inactive)
 
 ---
 
@@ -161,13 +163,10 @@ No request body. Atomically unsets all existing defaults for the wallet and sets
   bankName?: string;
   branchName?: string;
   routingNumber?: string;
-  isDefault?: boolean;
 }
 ```
 
 **Response `data`:** Updated `WithdrawalMethod`.
-
-**Side effects:** If `isDefault: true`, existing default methods for this wallet are unset.
 
 **Errors:**
 - `400` — No fields provided, or method is inactive
@@ -233,7 +232,7 @@ Supports pagination (`page`, `limit`), sorting (`sortBy`: `amount` | `createdAt`
 
 ### `GET /my-requests/:id`
 
-**Response `data`:** Full `WithdrawalRequest` including nested `wallet` and `withdrawalMethod`.
+**Response `data`:** Full `WithdrawalRequest` including nested `withdrawalMethod`.
 
 **Errors:**
 - `403` — Request does not belong to the authenticated user
@@ -276,7 +275,7 @@ Only allowed when `status === "PENDING"`.
 
 ```ts
 {
-  cancellationReason?: string; // optional, max 500 chars
+  cancellationReason?: string; // optional, 1–500 chars
 }
 ```
 
@@ -327,7 +326,7 @@ When a `WithdrawalRequest` is created, the `amount` is immediately deducted from
 
 ### `isDefault` atomicity
 
-`set-default` and any update with `isDefault: true` unset existing defaults inside a Prisma `$transaction` to prevent two methods being default simultaneously.
+`set-default` unsets all existing defaults for the wallet and sets the target method as default inside a Prisma `$transaction`. The general update endpoint (`PATCH /my-methods/:id`) does not accept `isDefault` — use the dedicated `set-default` endpoint instead.
 
 ### Soft-delete on `WithdrawalMethod`
 
