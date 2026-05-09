@@ -391,7 +391,8 @@ const editWithdrawalRequestService = async (
   const updated = await prisma.withdrawalRequest.update({
     where: { id },
     data: { ...(payload.note !== undefined && { note: payload.note }) },
-    include: { withdrawalMethod: true },
+    include: { withdrawalMethod: { omit: { isActive: true } } },
+    omit: { rejectedBy: true },
   });
   return updated;
 };
