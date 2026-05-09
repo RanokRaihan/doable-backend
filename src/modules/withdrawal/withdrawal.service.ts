@@ -66,9 +66,11 @@ const getMyWithdrawalMethodsService = async (
 
   const mergedWhere = { ...where, walletId: user.wallet.id, isActive: true };
 
-  const queryOptions: Parameters<
-    typeof prisma.withdrawalMethod.findMany
-  >[0] = { where: mergedWhere, skip, take };
+  const queryOptions: Parameters<typeof prisma.withdrawalMethod.findMany>[0] = {
+    where: mergedWhere,
+    skip,
+    take,
+  };
   if (orderBy) queryOptions.orderBy = orderBy;
 
   const [methods, totalCount] = await Promise.all([
@@ -79,17 +81,17 @@ const getMyWithdrawalMethodsService = async (
   return { data: methods, meta: buildMeta(totalCount, parsedQuery.pagination) };
 };
 
-const getWithdrawalMethodByIdService = async (
-  userId: string,
-  id: string,
-) => {
+const getWithdrawalMethodByIdService = async (userId: string, id: string) => {
   const method = await prisma.withdrawalMethod.findUnique({
     where: { id },
     include: { wallet: true },
   });
   if (!method) throw new AppError(404, "Withdrawal method not found");
   if (method.wallet.userId !== userId)
-    throw new AppError(403, "You are not authorized to view this withdrawal method");
+    throw new AppError(
+      403,
+      "You are not authorized to view this withdrawal method",
+    );
   return method;
 };
 
@@ -99,14 +101,15 @@ const updateWithdrawalMethodService = async (
   payload: IUpdateWithdrawalMethodPayload,
 ) => {
   const method = await prisma.withdrawalMethod.findUnique({
-    where: { id },
+    where: { id, isActive: true },
     include: { wallet: true },
   });
   if (!method) throw new AppError(404, "Withdrawal method not found");
   if (method.wallet.userId !== userId)
-    throw new AppError(403, "You are not authorized to update this withdrawal method");
-  if (!method.isActive)
-    throw new AppError(400, "Cannot update a deleted withdrawal method");
+    throw new AppError(
+      403,
+      "You are not authorized to update this withdrawal method",
+    );
 
   if (payload.isDefault) {
     await prisma.withdrawalMethod.updateMany({
@@ -118,12 +121,22 @@ const updateWithdrawalMethodService = async (
   const updated = await prisma.withdrawalMethod.update({
     where: { id },
     data: {
-      ...(payload.methodType !== undefined && { methodType: payload.methodType }),
-      ...(payload.accountNumber !== undefined && { accountNumber: payload.accountNumber }),
-      ...(payload.accountName !== undefined && { accountName: payload.accountName }),
+      ...(payload.methodType !== undefined && {
+        methodType: payload.methodType,
+      }),
+      ...(payload.accountNumber !== undefined && {
+        accountNumber: payload.accountNumber,
+      }),
+      ...(payload.accountName !== undefined && {
+        accountName: payload.accountName,
+      }),
       ...(payload.bankName !== undefined && { bankName: payload.bankName }),
-      ...(payload.branchName !== undefined && { branchName: payload.branchName }),
-      ...(payload.routingNumber !== undefined && { routingNumber: payload.routingNumber }),
+      ...(payload.branchName !== undefined && {
+        branchName: payload.branchName,
+      }),
+      ...(payload.routingNumber !== undefined && {
+        routingNumber: payload.routingNumber,
+      }),
       ...(payload.isDefault !== undefined && { isDefault: payload.isDefault }),
     },
   });
@@ -140,9 +153,15 @@ const setDefaultWithdrawalMethodService = async (
   });
   if (!method) throw new AppError(404, "Withdrawal method not found");
   if (method.wallet.userId !== userId)
-    throw new AppError(403, "You are not authorized to modify this withdrawal method");
+    throw new AppError(
+      403,
+      "You are not authorized to modify this withdrawal method",
+    );
   if (!method.isActive)
-    throw new AppError(400, "Cannot set a deleted withdrawal method as default");
+    throw new AppError(
+      400,
+      "Cannot set a deleted withdrawal method as default",
+    );
 
   const updated = await prisma.$transaction(async (tx) => {
     await tx.withdrawalMethod.updateMany({
@@ -157,23 +176,26 @@ const setDefaultWithdrawalMethodService = async (
   return updated;
 };
 
-const deleteWithdrawalMethodService = async (
-  userId: string,
-  id: string,
-) => {
+const deleteWithdrawalMethodService = async (userId: string, id: string) => {
   const method = await prisma.withdrawalMethod.findUnique({
     where: { id },
     include: { wallet: true },
   });
   if (!method) throw new AppError(404, "Withdrawal method not found");
   if (method.wallet.userId !== userId)
-    throw new AppError(403, "You are not authorized to delete this withdrawal method");
+    throw new AppError(
+      403,
+      "You are not authorized to delete this withdrawal method",
+    );
 
   const pendingCount = await prisma.withdrawalRequest.count({
     where: { withdrawalMethodId: id, status: "PENDING" },
   });
   if (pendingCount > 0)
-    throw new AppError(400, "Cannot delete a withdrawal method with pending requests");
+    throw new AppError(
+      400,
+      "Cannot delete a withdrawal method with pending requests",
+    );
 
   const updated = await prisma.withdrawalMethod.update({
     where: { id },
@@ -260,14 +282,13 @@ const getMyWithdrawalRequestsService = async (
 
   const mergedWhere = { ...where, walletId: user.wallet.id };
 
-  const queryOptions: Parameters<
-    typeof prisma.withdrawalRequest.findMany
-  >[0] = {
-    where: mergedWhere,
-    skip,
-    take,
-    include: { withdrawalMethod: true },
-  };
+  const queryOptions: Parameters<typeof prisma.withdrawalRequest.findMany>[0] =
+    {
+      where: mergedWhere,
+      skip,
+      take,
+      include: { withdrawalMethod: true },
+    };
   if (orderBy) queryOptions.orderBy = orderBy;
 
   const [requests, totalCount] = await Promise.all([
@@ -275,20 +296,23 @@ const getMyWithdrawalRequestsService = async (
     prisma.withdrawalRequest.count({ where: mergedWhere }),
   ]);
 
-  return { data: requests, meta: buildMeta(totalCount, parsedQuery.pagination) };
+  return {
+    data: requests,
+    meta: buildMeta(totalCount, parsedQuery.pagination),
+  };
 };
 
-const getWithdrawalRequestByIdService = async (
-  userId: string,
-  id: string,
-) => {
+const getWithdrawalRequestByIdService = async (userId: string, id: string) => {
   const request = await prisma.withdrawalRequest.findUnique({
     where: { id },
     include: { wallet: true, withdrawalMethod: true },
   });
   if (!request) throw new AppError(404, "Withdrawal request not found");
   if (request.wallet.userId !== userId)
-    throw new AppError(403, "You are not authorized to view this withdrawal request");
+    throw new AppError(
+      403,
+      "You are not authorized to view this withdrawal request",
+    );
   return request;
 };
 
@@ -303,14 +327,23 @@ const editWithdrawalRequestService = async (
   });
   if (!request) throw new AppError(404, "Withdrawal request not found");
   if (request.wallet.userId !== userId)
-    throw new AppError(403, "You are not authorized to edit this withdrawal request");
+    throw new AppError(
+      403,
+      "You are not authorized to edit this withdrawal request",
+    );
   if (request.status !== "PENDING")
     throw new AppError(400, "Only PENDING withdrawal requests can be edited");
 
-  if (payload.amount !== undefined && payload.amount !== Number(request.amount)) {
+  if (
+    payload.amount !== undefined &&
+    payload.amount !== Number(request.amount)
+  ) {
     const available = Number(request.wallet.balance) + Number(request.amount);
     if (payload.amount > available)
-      throw new AppError(400, "Insufficient wallet balance for the updated amount");
+      throw new AppError(
+        400,
+        "Insufficient wallet balance for the updated amount",
+      );
 
     const diff = payload.amount - Number(request.amount);
 
@@ -363,9 +396,15 @@ const cancelWithdrawalRequestService = async (
   });
   if (!request) throw new AppError(404, "Withdrawal request not found");
   if (request.wallet.userId !== userId)
-    throw new AppError(403, "You are not authorized to cancel this withdrawal request");
+    throw new AppError(
+      403,
+      "You are not authorized to cancel this withdrawal request",
+    );
   if (request.status !== "PENDING")
-    throw new AppError(400, "Only PENDING withdrawal requests can be cancelled");
+    throw new AppError(
+      400,
+      "Only PENDING withdrawal requests can be cancelled",
+    );
 
   const updated = await prisma.$transaction(async (tx) => {
     await tx.wallet.update({

@@ -14,7 +14,7 @@ const withdrawalMethodBody = z
   .superRefine((data, ctx) => {
     if (data.methodType === "BANK" && !data.bankName) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "bankName is required for BANK method type",
         path: ["bankName"],
       });
@@ -41,7 +41,7 @@ const updateWithdrawalMethodSchema = z.object({
       const provided = Object.values(data).filter((v) => v !== undefined);
       if (provided.length === 0) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: "At least one field must be provided to update",
         });
       }
@@ -81,7 +81,7 @@ const editWithdrawalRequestSchema = z.object({
     .superRefine((data, ctx) => {
       if (data.amount === undefined && data.note === undefined) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: "At least one field (amount or note) must be provided",
         });
       }
