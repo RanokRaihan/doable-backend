@@ -1,5 +1,11 @@
 import { WithdrawalMethodType } from "../../generated/prisma/enums";
 
+interface IGetWithdrawalMethodsQuery {
+  methodType?: WithdrawalMethodType;
+  sortBy?: "createdAt" | "updatedAt";
+  sortOrder?: "asc" | "desc";
+}
+
 interface ICreateWithdrawalMethodPayload {
   methodType: WithdrawalMethodType;
   accountNumber: string;
@@ -34,5 +40,6 @@ export type {
   ICreateWithdrawalMethodPayload,
   ICreateWithdrawalRequestPayload,
   IEditWithdrawalRequestPayload,
+  IGetWithdrawalMethodsQuery,
   IUpdateWithdrawalMethodPayload,
 };

@@ -10,6 +10,7 @@ import {
   ICreateWithdrawalMethodPayload,
   ICreateWithdrawalRequestPayload,
   IEditWithdrawalRequestPayload,
+  IGetWithdrawalMethodsQuery,
   IUpdateWithdrawalMethodPayload,
 } from "./withdrawal.interface";
 
@@ -56,19 +57,29 @@ const createWithdrawalMethodService = async (
   return method;
 };
 
-const getMyWithdrawalMethodsService = async (userId: string) => {
+const getMyWithdrawalMethodsService = async (
+  userId: string,
+  query: IGetWithdrawalMethodsQuery,
+) => {
   const user = await prisma.user.findUnique({
     where: { id: userId, isDeleted: false },
     include: { wallet: true },
   });
   if (!user?.wallet) throw new AppError(404, "Wallet not found");
 
-  const methods = await prisma.withdrawalMethod.findMany({
-    where: { walletId: user.wallet.id, isActive: true },
-    omit: { isActive: true },
-  });
+  const where = {
+    walletId: user.wallet.id,
+    isActive: true,
+    ...(query.methodType && { methodType: query.methodType }),
+  };
 
-  return methods;
+  const queryOptions: Parameters<typeof prisma.withdrawalMethod.findMany>[0] =
+    { where, omit: { isActive: true } };
+  if (query.sortBy) {
+    queryOptions.orderBy = { [query.sortBy]: query.sortOrder ?? "asc" };
+  }
+
+  return prisma.withdrawalMethod.findMany(queryOptions);
 };
 
 const getWithdrawalMethodByIdService = async (userId: string, id: string) => {

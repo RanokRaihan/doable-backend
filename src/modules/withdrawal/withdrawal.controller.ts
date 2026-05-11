@@ -1,6 +1,8 @@
 import { RequestHandler } from "express";
+import { WithdrawalMethodType } from "../../generated/prisma/enums";
 import { asyncHandler, sendResponse } from "../../utils";
 import { parseQuery } from "../../utils/query";
+import { IGetWithdrawalMethodsQuery } from "./withdrawal.interface";
 import {
   cancelWithdrawalRequestService,
   createWithdrawalMethodService,
@@ -26,7 +28,15 @@ const createWithdrawalMethodController: RequestHandler = asyncHandler(
 
 const getMyWithdrawalMethodsController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const result = await getMyWithdrawalMethodsService(req.user!.id);
+    const { methodType, sortBy, sortOrder } = req.query;
+    const query: IGetWithdrawalMethodsQuery = {
+      ...(typeof methodType === "string" && {
+        methodType: methodType as WithdrawalMethodType,
+      }),
+      ...(sortBy === "createdAt" || sortBy === "updatedAt" ? { sortBy } : {}),
+      ...(sortOrder === "asc" || sortOrder === "desc" ? { sortOrder } : {}),
+    };
+    const result = await getMyWithdrawalMethodsService(req.user!.id, query);
     sendResponse(res, 200, "Withdrawal methods fetched successfully", result);
   },
 );
@@ -96,7 +106,13 @@ const getMyWithdrawalRequestsController: RequestHandler = asyncHandler(
       req.user!.id,
       parsedQuery,
     );
-    sendResponse(res, 200, "Withdrawal requests fetched successfully", result);
+    sendResponse(
+      res,
+      200,
+      "Withdrawal requests fetched successfully",
+      result.data,
+      result.meta,
+    );
   },
 );
 
