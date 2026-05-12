@@ -1,7 +1,15 @@
-import { Gender } from "../../generated/prisma/enums";
 import { z } from "zod";
+import { Gender } from "../../generated/prisma/enums";
 
-const usPhoneRegex = /^\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/;
+const phoneSchema = z.string().refine(
+  (val) => {
+    const digitsOnly = val.replace(/\D/g, "");
+    return digitsOnly.length === 10 || digitsOnly.length === 11;
+  },
+  {
+    message: "Phone number must be a valid US or BD phone number ",
+  },
+);
 
 export const createUserSchema = z.object({
   body: z
@@ -18,7 +26,9 @@ export const createUserSchema = z.object({
         .string()
         .min(8, { message: "Password must be at least 8 characters long" })
         .max(255, { message: "Password must be less than 255 characters" })
-        .regex(/[a-zA-Z]/, { message: "Password must contain at least one letter" }),
+        .regex(/[a-zA-Z]/, {
+          message: "Password must contain at least one letter",
+        }),
     })
     .strict(),
 });
@@ -40,12 +50,7 @@ export const updateUserSchema = z.object({
         .min(1, { message: "Address must not be empty" })
         .max(255, { message: "Address must be less than 255 characters" })
         .optional(),
-      phone: z
-        .string()
-        .regex(usPhoneRegex, {
-          message: "Phone must be a valid US phone number (e.g., (555) 555-5555)",
-        })
-        .optional(),
+      phone: phoneSchema.optional(),
       bio: z
         .string()
         .trim()
@@ -67,9 +72,7 @@ export const completeUserProfileSchema = z.object({
         .trim()
         .min(1, { message: "Address is required" })
         .max(255, { message: "Address must be less than 255 characters" }),
-      phone: z.string().regex(usPhoneRegex, {
-        message: "Phone must be a valid US phone number (e.g., (555) 555-5555)",
-      }),
+      phone: phoneSchema,
       bio: z
         .string()
         .trim()
