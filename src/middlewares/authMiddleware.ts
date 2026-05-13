@@ -38,11 +38,8 @@ export const auth = asyncHandler(
       throw new AppError(HTTP_STATUS.UNAUTHORIZED, ERROR_MESSAGES.UNAUTHORIZED);
     }
 
-    // Get user and validate existence
+    // Get user and validate existence (getAuthUser throws 401 if not found)
     const user = await getAuthUser(decoded.userId);
-    if (!user || user.isDeleted) {
-      throw new AppError(HTTP_STATUS.NOT_FOUND, ERROR_MESSAGES.USER_NOT_FOUND);
-    }
 
     // Check account status
     if (user.profileStatus === "SUSPENDED") {
@@ -77,15 +74,14 @@ export const optionalAuth = asyncHandler(
 
       // Get user and validate existence
       const user = await getAuthUser(decoded.userId);
-      if (!user || user.isDeleted) {
+      if (!user || user.isDeleted || user.profileStatus === "SUSPENDED") {
         return next();
       }
 
       // Attach user to request and proceed
       req.user = user;
       next();
-    } catch (error) {
-      console.error("Error in optionalAuth middleware:", error);
+    } catch {
       next();
     }
   },

@@ -14,7 +14,7 @@ import {
 const createApplicationController: RequestHandler = asyncHandler(
   async (req, res) => {
     const userId = req.user?.id;
-    const taskId = req.params.taskId;
+    const taskId = req.params.taskId as string;
     if (!userId) {
       throw new AppError(401, "Unauthorized");
     }
@@ -65,7 +65,7 @@ const getAllMyApplicationsController: RequestHandler = asyncHandler(
 
 const getAllApplicationsForTaskController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const taskId = req.params.taskId;
+    const taskId = req.params.taskId as string;
     const userId = req.user?.id;
     if (!userId) {
       throw new AppError(401, "Unauthorized");
@@ -94,7 +94,7 @@ const getAllApplicationsForTaskController: RequestHandler = asyncHandler(
 // getApplicationByIdController
 const getApplicationByIdController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const applicationId = req.params.applicationId;
+    const applicationId = req.params.applicationId as string;
     const userId = req.user?.id;
     if (!userId) {
       throw new AppError(401, "Unauthorized");
@@ -117,7 +117,7 @@ const getApplicationByIdController: RequestHandler = asyncHandler(
 // approveApplicationController
 const approveApplicationController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const applicationId = req.params.applicationId;
+    const applicationId = req.params.applicationId as string;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -144,7 +144,7 @@ const approveApplicationController: RequestHandler = asyncHandler(
 // rejectApplicationController
 const rejectApplicationController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const applicationId = req.params.applicationId;
+    const applicationId = req.params.applicationId as string;
     const userId = req.user?.id;
     const { rejectionReason } = req.body;
 
@@ -173,7 +173,7 @@ const rejectApplicationController: RequestHandler = asyncHandler(
 // withdrawApplicationController
 const withdrawApplicationController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const applicationId = req.params.applicationId;
+    const applicationId = req.params.applicationId as string;
     const userId = req.user?.id;
     const { withdrawalReason } = req.body;
 

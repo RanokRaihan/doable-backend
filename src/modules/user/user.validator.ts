@@ -1,13 +1,23 @@
-import { Gender } from "@prisma/client";
 import { z } from "zod";
+import { Gender } from "../../generated/prisma/enums";
 
-// Validation logic for user input
+const phoneSchema = z.string().refine(
+  (val) => {
+    const digitsOnly = val.replace(/\D/g, "");
+    return digitsOnly.length === 10 || digitsOnly.length === 11;
+  },
+  {
+    message: "Phone number must be a valid US or BD phone number ",
+  },
+);
+
 export const createUserSchema = z.object({
   body: z
     .object({
       email: z
         .email({ message: "Invalid email format" })
-        .max(255, { message: "Email must be less than 255 characters" }),
+        .max(255, { message: "Email must be less than 255 characters" })
+        .transform((v) => v.toLowerCase().trim()),
       name: z
         .string()
         .min(1, { message: "Name is required" })
@@ -15,7 +25,10 @@ export const createUserSchema = z.object({
       password: z
         .string()
         .min(8, { message: "Password must be at least 8 characters long" })
-        .max(255, { message: "Password must be less than 255 characters" }),
+        .max(255, { message: "Password must be less than 255 characters" })
+        .regex(/[a-zA-Z]/, {
+          message: "Password must contain at least one letter",
+        }),
     })
     .strict(),
 });
@@ -37,13 +50,7 @@ export const updateUserSchema = z.object({
         .min(1, { message: "Address must not be empty" })
         .max(255, { message: "Address must be less than 255 characters" })
         .optional(),
-      phone: z
-        .string()
-        .regex(/^01\d{9}$/, {
-          message:
-            "Phone must be 11 digits, start with 01 and contain only numbers",
-        })
-        .optional(),
+      phone: phoneSchema.optional(),
       bio: z
         .string()
         .trim()
@@ -65,10 +72,7 @@ export const completeUserProfileSchema = z.object({
         .trim()
         .min(1, { message: "Address is required" })
         .max(255, { message: "Address must be less than 255 characters" }),
-      phone: z.string().regex(/^01\d{9}$/, {
-        message:
-          "Phone must be 11 digits, start with 01 and contain only numbers",
-      }),
+      phone: phoneSchema,
       bio: z
         .string()
         .trim()

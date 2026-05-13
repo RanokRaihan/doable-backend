@@ -1,5 +1,5 @@
-import type { Gender, TaskCategory, TaskStatus } from "@prisma/client";
-import type { Decimal } from "@prisma/client/runtime/library";
+import type { Gender, TaskCategory, TaskStatus } from "../../generated/prisma/enums";
+import type { Decimal } from "../../generated/prisma/internal/prismaNamespace";
 
 export interface PublicUserProfile {
   id: string;

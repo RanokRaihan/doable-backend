@@ -1,10 +1,15 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
@@ -36,7 +41,8 @@ enum TaskStatus {
   ASSIGNED
   IN_PROGRESS
   PENDING_REVIEW
-  PAYMENT_PROCESSING
+  PAYMENT_PENDING
+  PAYMENT_INITIATED
   COMPLETED
   PAYMENT_FAILED
   DISPUTED
@@ -67,6 +73,7 @@ enum TaskCategory {
 enum ApplicationStatus {
   PENDING
   APPROVED
+  CLOSED
   REJECTED
   WITHDRAWN
 }
@@ -402,8 +409,10 @@ model Wallet {
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 
-  transactions WalletTransaction[]
-  commissions  CommissionDue[]
+  transactions       WalletTransaction[]
+  commissions        CommissionDue[]
+  withdrawalMethods  WithdrawalMethod[]
+  withdrawalRequests WithdrawalRequest[]
 
   @@map("wallets")
 }
@@ -454,6 +463,67 @@ model WalletTransaction {
   @@index([refCommissionDueId])
   @@index([createdAt])
   @@map("wallet_transactions")
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum WithdrawalMethodType {
+  BANK
+  MOBILE_BANKING
+}
+
+model WithdrawalMethod {
+  id            String               @id @default(cuid())
+  walletId      String
+  wallet        Wallet               @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  methodType    WithdrawalMethodType
+  accountNumber String               @db.VarChar(50)
+  accountName   String               @db.VarChar(100)
+  bankName      String?              @db.VarChar(100)
+  branchName    String?              @db.VarChar(100)
+  routingNumber String?              @db.VarChar(50)
+  isDefault     Boolean              @default(false)
+  isActive      Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  withdrawalRequests WithdrawalRequest[]
+
+  @@index([walletId])
+  @@index([isActive])
+  @@map("withdrawal_methods")
+}
+
+model WithdrawalRequest {
+  id                 String               @id @default(cuid())
+  walletId           String
+  wallet             Wallet               @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  withdrawalMethodId String
+  withdrawalMethod   WithdrawalMethod     @relation(fields: [withdrawalMethodId], references: [id], onDelete: Restrict)
+  amount             Decimal              @db.Decimal(10, 2)
+  status             WithdrawalStatus     @default(PENDING)
+  note               String?              @db.Text
+  cancellationReason String?              @db.Text
+  rejectionReason    String?              @db.Text
+  rejectedBy         String?
+  rejectedAt         DateTime?
+  refWalletTnxId     String?
+  processedAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([walletId])
+  @@index([withdrawalMethodId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("withdrawal_requests")
 }
 
 model CommissionDue {

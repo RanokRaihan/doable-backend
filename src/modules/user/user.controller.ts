@@ -9,7 +9,6 @@ import {
   completeUserProfileService,
   createUserService,
   deleteAccountService,
-  getAllUsersService,
   getPublicProfileService,
   getUserByEmailService,
   getUserByIdService,
@@ -33,13 +32,6 @@ const createUserController: RequestHandler = asyncHandler(async (req, res) => {
   }
   sendResponse(res, 201, "User created successfully!", newUser);
 });
-
-const getAllUsersController: RequestHandler = asyncHandler(
-  async (_req, res) => {
-    const users = await getAllUsersService();
-    sendResponse(res, 200, "Users retrieved successfully!", users);
-  },
-);
 
 const getUserByEmailController: RequestHandler = asyncHandler(
   async (req, res) => {
@@ -178,7 +170,6 @@ export {
   completeUserProfileController,
   createUserController,
   deleteAccountController,
-  getAllUsersController,
   getPublicProfile,
   getUserByEmailController,
   getUserByIdController,

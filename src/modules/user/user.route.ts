@@ -6,7 +6,6 @@ import {
   completeUserProfileController,
   createUserController,
   deleteAccountController,
-  getAllUsersController,
   getPublicProfile,
   getUserByIdController,
   getUserProfileController,
@@ -22,9 +21,6 @@ import {
 } from "./user.validator";
 
 const router = Router();
-
-// temporary route to get all users; to be removed later
-router.get("/", getAllUsersController);
 
 // POST /users - Create new user with credentials
 router.post(

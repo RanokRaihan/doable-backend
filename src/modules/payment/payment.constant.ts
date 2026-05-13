@@ -1,6 +1,7 @@
 const paymentSortableFields = ["amount", "createdAt", "paidAt"];
 
-const paymentFilterableFields = ["method", "status"];
+const paymentMadeFilterableFields = ["method", "status"];
+const paymentReceivedFilterableFields = ["method"];
 
 const paymentSelectFieldsOwner = {
   id: true,
@@ -32,7 +33,8 @@ const paymentSelectFieldsApplicant = {
 };
 
 export {
-  paymentFilterableFields,
+  paymentMadeFilterableFields,
+  paymentReceivedFilterableFields,
   paymentSelectFieldsApplicant,
   paymentSelectFieldsOwner,
   paymentSortableFields,

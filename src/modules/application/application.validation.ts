@@ -1,5 +1,5 @@
-import { ApplicationStatus } from "@prisma/client";
 import { z } from "zod";
+import { ApplicationStatus } from "../../generated/prisma/enums";
 import { applicationSortableFields } from "./application.constant";
 
 export const createApplicationSchema = z.object({
