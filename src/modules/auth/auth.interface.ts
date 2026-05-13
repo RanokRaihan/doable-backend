@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { UserRole } from "../../generated/prisma/enums";
 import { JwtPayload } from "jsonwebtoken";
 import z from "zod";
 import { loginValidationSchema } from "./auth.validation";

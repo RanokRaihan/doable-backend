@@ -13,7 +13,8 @@ type TaskStatus =
   | "ASSIGNED"
   | "IN_PROGRESS"
   | "PENDING_REVIEW"
-  | "PAYMENT_PROCESSING"
+  | "PAYMENT_PENDING"
+  | "PAYMENT_INITIATED"
   | "COMPLETED"
   | "PAYMENT_FAILED"
   | "DISPUTED"
@@ -126,6 +127,7 @@ interface Image {
 | GET    | `/recently-posted`            | —    | —     | Get recently posted tasks                |
 | GET    | `/my-posted-tasks`            | JWT  | USER  | Get all tasks posted by current user     |
 | GET    | `/my-posted-task/:taskId`     | JWT  | USER  | Get specific task posted by current user |
+| GET    | `/:id/related`                | —    | —     | Get up to 4 related tasks (same category)|
 | GET    | `/:id`                        | —    | —     | Get task by ID                           |
 | POST   | `/post-task`                  | JWT  | USER  | Create task                              |
 | PATCH  | `/update-task/:id`            | JWT  | USER  | Update task (owner only)                 |
@@ -186,6 +188,20 @@ Response `data`: Task object (public view) including:
 Get recently posted tasks. No authentication required.
 
 Response `data`: Array of recently posted task objects (public view).
+
+---
+
+#### `GET /:id/related`
+
+Get up to 4 tasks related to the given task by matching `category`. Only returns `OPEN`, non-deleted tasks, excluding the source task itself.
+
+**Params:** `id` — ID of the source task.
+
+Response `data`: Array of up to 4 `TaskPublic` objects (same shape as `GET /all-task` items, including `images`).
+
+**Errors:**
+
+- `404` — Task not found
 
 ---
 
@@ -345,12 +361,12 @@ Deletes a single image from a task. Only the task owner can delete images.
 
 All return `data: null` on success.
 
-| Endpoint                      | Who                | Precondition     | Result status        |
-| ----------------------------- | ------------------ | ---------------- | -------------------- |
-| `/:taskId/mark-in-progress`   | Approved applicant | `ASSIGNED`       | `IN_PROGRESS`        |
-| `/:taskId/mark-completed`     | Approved applicant | `IN_PROGRESS`    | `PENDING_REVIEW`     |
-| `/:taskId/approve-completion` | Task poster        | `PENDING_REVIEW` | `PAYMENT_PROCESSING` |
-| `/:taskId/request-revision`   | Task poster        | `PENDING_REVIEW` | `IN_PROGRESS`        |
+| Endpoint                      | Who                | Precondition     | Result status     |
+| ----------------------------- | ------------------ | ---------------- | ----------------- |
+| `/:taskId/mark-in-progress`   | Approved applicant | `ASSIGNED`       | `IN_PROGRESS`     |
+| `/:taskId/mark-completed`     | Approved applicant | `IN_PROGRESS`    | `PENDING_REVIEW`  |
+| `/:taskId/approve-completion` | Task poster        | `PENDING_REVIEW` | `PAYMENT_PENDING` |
+| `/:taskId/request-revision`   | Task poster        | `PENDING_REVIEW` | `IN_PROGRESS`     |
 
 ---
 
@@ -367,13 +383,18 @@ IN_PROGRESS
   ↓ tasker calls mark-completed
 PENDING_REVIEW ──→ (poster calls request-revision) ──→ IN_PROGRESS
   ↓ poster calls approve-completion
-PAYMENT_PROCESSING
+PAYMENT_PENDING
+  ↓ payment initiated (online: SSLCommerz init; cash: poster claims)
+PAYMENT_INITIATED
   ↓ payment confirmed / IPN validated
 COMPLETED
 
   Side exits:
-  PAYMENT_PROCESSING → DISPUTED (tasker declines cash payment)
-  IN_PROGRESS / PAYMENT_PROCESSING → PAYMENT_FAILED (not yet wired)
+  PAYMENT_PENDING / PAYMENT_INITIATED → DISPUTED (tasker declines cash payment)
+  PAYMENT_PENDING / PAYMENT_INITIATED → PAYMENT_FAILED (payment fails or expires)
+  Any active status → CANCELLED
+  OPEN → EXPIRED (task expiry)
+  COMPLETED → REFUNDED
 ```
 
 ---
@@ -401,6 +422,7 @@ const protectedRoutes = {
 const publicRoutes = [
   "GET  /api/v1/task/all-task",
   "GET  /api/v1/task/recently-posted",
+  "GET  /api/v1/task/:id/related",
   "GET  /api/v1/task/:id",
 ];
 ```

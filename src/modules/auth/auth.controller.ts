@@ -6,6 +6,7 @@ import {
   ResponseHandler,
   sendResponse,
 } from "../../utils";
+import { parseExpiryToMs } from "../../utils/time";
 import { UserLoginInput } from "./auth.interface";
 import {
   changeUserPasswordService,
@@ -31,7 +32,7 @@ const loginController: RequestHandler = asyncHandler(async (req, res) => {
     httpOnly: true,
     secure: config.nodeEnv === "production",
     sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: parseExpiryToMs(config.jwt.refreshExpiresIn),
   });
 
   return ResponseHandler.ok(
@@ -64,7 +65,6 @@ const logoutController: RequestHandler = asyncHandler(async (req, res) => {
 const getCurrentUserController: RequestHandler = asyncHandler(
   async (req, res) => {
     const userId = req.user?.id;
-    console.log("user", req.user);
     if (!userId) {
       return ResponseHandler.unauthorized(
         res,
@@ -148,7 +148,7 @@ const refreshTokenController: RequestHandler = asyncHandler(
       httpOnly: true,
       secure: config.nodeEnv === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: parseExpiryToMs(config.jwt.refreshExpiresIn),
     });
 
     return ResponseHandler.ok(
@@ -210,7 +210,7 @@ const verifyEmailController: RequestHandler = asyncHandler(async (req, res) => {
     httpOnly: true,
     secure: config.nodeEnv === "production",
     sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: parseExpiryToMs(config.jwt.refreshExpiresIn),
   });
 
   sendResponse(res, 200, "Email verified successfully", {

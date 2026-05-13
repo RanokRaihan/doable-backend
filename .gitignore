@@ -104,3 +104,7 @@ build/
 *.temp.*
 .temp/
 
+
+/generated/prisma
+
+/issues/*

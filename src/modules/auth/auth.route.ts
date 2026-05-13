@@ -14,7 +14,11 @@ import {
   verifyEmailController,
 } from "./auth.controller";
 import {
+  changePasswordValidationSchema,
+  forgotPasswordValidationSchema,
   loginValidationSchema,
+  refreshTokenValidationSchema,
+  resetPasswordValidationSchema,
   verifyEmailValidationSchema,
 } from "./auth.validation";
 
@@ -22,13 +26,12 @@ const router = Router();
 
 router.post("/login", validateRequest(loginValidationSchema), loginController);
 router.post("/logout", logoutController);
-router.post("/refresh-token", refreshTokenController);
+router.post("/refresh-token", validateRequest(refreshTokenValidationSchema), refreshTokenController);
 router.get("/current-user", auth, getCurrentUserController);
-router.get("/loggedin-user", auth, getCurrentUserController);
-router.post("/update-password", auth, changePasswordController);
-router.post("/forgot-password", forgotPasswordController);
-router.post("/reset-password", resetPasswordController);
-// email verfication
+router.post("/update-password", auth, validateRequest(changePasswordValidationSchema), changePasswordController);
+router.post("/forgot-password", validateRequest(forgotPasswordValidationSchema), forgotPasswordController);
+router.post("/reset-password", validateRequest(resetPasswordValidationSchema), resetPasswordController);
+// email verification
 router.get("/email-verification", auth, getEmailVerificationDataController);
 router.post("/send-verification-email", auth, sendVerificationController);
 router.post(

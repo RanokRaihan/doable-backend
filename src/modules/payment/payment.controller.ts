@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import config from "../../config";
-import { AppError, asyncHandler, sendResponse } from "../../utils";
+import { AppError, asyncHandler, ResponseHandler } from "../../utils";
 import { parseQuery } from "../../utils/query";
 import { IpnQuery } from "./payment.interface";
 import {
@@ -12,8 +12,6 @@ import {
   getPaymentByIdService,
   getPaymentBySessionTokenService,
   onlinePaymentInitService,
-  paymentCancelService,
-  paymentFailService,
   validateOnlinePaymentService,
 } from "./payment.service";
 
@@ -28,9 +26,15 @@ const cashPaymentInitController: RequestHandler = asyncHandler(
       throw new Error("Task ID is required");
     }
     const payment = await cashPaymentInitService(user.id, taskId);
-    sendResponse(res, 201, "Payment initiated successfully", payment);
+    return ResponseHandler.created(
+      res,
+      "Payment initiated successfully",
+      payment,
+      req.path,
+    );
   },
 );
+
 const cashPaymentConfirmController: RequestHandler = asyncHandler(
   async (req, res) => {
     const { paymentId } = req.params;
@@ -42,9 +46,12 @@ const cashPaymentConfirmController: RequestHandler = asyncHandler(
       throw new Error("Payment ID is required");
     }
     const payment = await cashPaymentConfirmService(user.id, paymentId);
-    sendResponse(res, 200, "Payment confirmed successfully", payment);
+    return ResponseHandler.ok(res, "Payment confirmed successfully", payment, {
+      path: req.path,
+    });
   },
 );
+
 const cashPaymentDeclineController: RequestHandler = asyncHandler(
   async (req, res) => {
     const { paymentId } = req.params;
@@ -56,9 +63,12 @@ const cashPaymentDeclineController: RequestHandler = asyncHandler(
       throw new Error("Payment ID is required");
     }
     const payment = await cashPaymentDeclineService(user.id, paymentId);
-    sendResponse(res, 200, "Payment declined successfully", payment);
+    return ResponseHandler.ok(res, "Payment declined successfully", payment, {
+      path: req.path,
+    });
   },
 );
+
 const onlinePaymentInitController: RequestHandler = asyncHandler(
   async (req, res) => {
     const { taskId } = req.params;
@@ -70,34 +80,31 @@ const onlinePaymentInitController: RequestHandler = asyncHandler(
       throw new Error("Task ID is required");
     }
     const response = await onlinePaymentInitService(user.id, taskId);
-    sendResponse(res, 201, response.message, response);
+    return ResponseHandler.created(res, response.message, response, req.path);
   },
 );
 
 const validateOnlinePaymentController: RequestHandler = asyncHandler(
   async (req, res) => {
-    const query = req.query;
+    // SSLCommerz sends IPN as POST with form body; fall back to query params if body is empty
+    const source = req.query.tran_id ? req.query : req.body;
 
-    // Map and cast req.query to IpnQuery type
     const ipnQuery: IpnQuery = {
-      tran_id: query.tran_id as string,
-      amount: Number(query.amount),
-      bank_tran_id: query.bank_tran_id as string,
-      status: query.status as string,
-      val_id: query.val_id as string,
-      // Add other fields from IpnQuery if needed
-      ...query,
+      tran_id: source.tran_id as string,
+      amount: Number(source.amount),
+      bank_tran_id: source.bank_tran_id as string,
+      status: source.status as string,
+      val_id: source.val_id as string,
+      ...source,
     };
 
     const response = await validateOnlinePaymentService(ipnQuery);
-
-    // Using dummy service for now. Replace with actual service later.
-    // const response = await dummyValidateOnlinePaymentService(ipnQuery);
-    sendResponse(res, 200, "Payment validated successfully", response);
+    return ResponseHandler.ok(res, "Payment validated successfully", response, {
+      path: req.path,
+    });
   },
 );
 
-// get all payment made by user
 const getAllPaymentMadeController: RequestHandler = asyncHandler(
   async (req, res) => {
     const user = req.user;
@@ -106,11 +113,15 @@ const getAllPaymentMadeController: RequestHandler = asyncHandler(
     }
     const parsedQuery = parseQuery(req);
     const allPaymentMade = await getAllPaymentMadeService(user.id, parsedQuery);
-    sendResponse(res, 200, "Fetched all payments made by user", allPaymentMade);
+    return ResponseHandler.ok(
+      res,
+      "Fetched all payments made by user",
+      allPaymentMade,
+      { path: req.path },
+    );
   },
 );
 
-// get all payment received by user
 const getAllPaymentReceivedController: RequestHandler = asyncHandler(
   async (req, res) => {
     const user = req.user;
@@ -122,11 +133,11 @@ const getAllPaymentReceivedController: RequestHandler = asyncHandler(
       user.id,
       parsedQuery,
     );
-    sendResponse(
+    return ResponseHandler.ok(
       res,
-      200,
       "Fetched all payments received by user",
       allPaymentReceived,
+      { path: req.path },
     );
   },
 );
@@ -142,17 +153,19 @@ const getPaymentByIdController: RequestHandler = asyncHandler(
       throw new Error("Payment ID is required");
     }
     const payment = await getPaymentByIdService(id, user.id);
-
-    // Implementation to get payment by ID goes here
-    sendResponse(res, 200, "Payment fetched successfully", payment);
+    return ResponseHandler.ok(res, "Payment fetched successfully", payment, {
+      path: req.path,
+    });
   },
 );
 
+// ISSUE-005: added `return` to prevent execution continuing past the early redirect
 const paymentSuccessController: RequestHandler = asyncHandler(
   async (req, res) => {
     const data: IpnQuery = req.body;
+
     if (!data || !data.tran_id || !data.val_id) {
-      res.redirect(config.sslcommerz.failUrlFrontend);
+      return res.redirect(config.sslcommerz.failUrlFrontend);
     }
     const sessionToken = req.query?.sessionToken;
     const finalPayment = await validateOnlinePaymentService(data);
@@ -169,7 +182,7 @@ const paymentFailController: RequestHandler = asyncHandler(async (req, res) => {
   const data: IpnQuery = req.body;
   const sessionToken = req.query?.sessionToken;
   if (data?.tran_id) {
-    await paymentFailService(data);
+    await validateOnlinePaymentService(data);
   }
   res.redirect(
     `${config.sslcommerz.failUrlFrontend}?sessionToken=${sessionToken}`,
@@ -181,7 +194,7 @@ const paymentCancelController: RequestHandler = asyncHandler(
     const data: IpnQuery = req.body;
     const sessionToken = req.query?.sessionToken;
     if (data?.tran_id) {
-      await paymentCancelService(data);
+      await validateOnlinePaymentService(data);
     }
     res.redirect(
       `${config.sslcommerz.cancelUrlFrontend}?sessionToken=${sessionToken}`,
@@ -203,7 +216,9 @@ const getPaymentBySessionTokenController: RequestHandler = asyncHandler(
       sessionToken,
       user.id,
     );
-    sendResponse(res, 200, "Payment fetched successfully", payment);
+    return ResponseHandler.ok(res, "Payment fetched successfully", payment, {
+      path: req.path,
+    });
   },
 );
 
