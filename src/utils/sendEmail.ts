@@ -1,5 +1,5 @@
 import config from "../config";
-import transporter from "../config/nodemailer.config";
+import resend from "../config/resend.config";
 import { AppError } from "./appError";
 
 interface EmailOptions {
@@ -17,17 +17,15 @@ export const sendEmail = async ({
   from,
   text,
 }: EmailOptions): Promise<void> => {
-  try {
-    await transporter.sendMail({
-      from: from || `"Get it. done - " <${config.smtp.user}>`,
-      to,
-      subject,
-      text,
-      html,
-    });
-    console.log(`Email sent to ${to}`);
-  } catch (error) {
-    console.error("Error sending email:", error);
+  const { error } = await resend.emails.send({
+    from: from || `Doable <${config.resend.fromEmail}>`,
+    to,
+    subject,
+    html,
+    ...(text !== undefined && { text }),
+  });
+
+  if (error) {
     throw new AppError(500, "Failed to send email");
   }
 };

@@ -29,12 +29,9 @@ interface Config {
     accessExpiresIn: string;
     refreshExpiresIn: string;
   };
-  smtp: {
-    host: string;
-    port: number;
-    secure: boolean;
-    user: string;
-    pass: string;
+  resend: {
+    apiKey: string;
+    fromEmail: string;
   };
   sslcommerz: {
     storeId: string;
@@ -73,12 +70,9 @@ const config: Config = {
     accessExpiresIn: process.env.JWT_EXPIRES_IN || "1h",
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   },
-  smtp: {
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === "true",
-    user: process.env.SMTP_USER || "",
-    pass: process.env.SMTP_PASS || "",
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || "",
+    fromEmail: process.env.RESEND_FROM_EMAIL || "no-reply@doable.app",
   },
   sslcommerz: {
     storeId: process.env.STORE_ID || "",

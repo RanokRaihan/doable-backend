@@ -2,6 +2,7 @@
 
 ## Recent Changes
 
+- 2026-05-14 — Replaced Nodemailer with Resend: deleted nodemailer.config.ts, created resend.config.ts, updated sendEmail.ts and config/index.ts (smtp → resend block); removed nodemailer + @types/nodemailer packages
 - 2026-05-09 — Resolved withdrawal audit findings: H-01/M-04 balance checks moved inside $transaction with fresh wallet read (TOCTOU fix); H-02 wallet stripped from GET-by-ID responses (getWithdrawalMethodByIdService, getWithdrawalRequestByIdService); H-03 isActive:true added to getWithdrawalMethodByIdService findUnique; M-01 create+updateMany wrapped in $transaction; M-02 resolved by L-04; M-03 count+softdelete wrapped in $transaction; L-02 isActive removed from withdrawalMethodFilterableFields; L-03 WithdrawalMethodType imported from generated Prisma enums; L-04 isDefault removed from update schema and IUpdateWithdrawalMethodPayload; L-05 cancellationReason min(1) added; L-06 .trim() on financial string fields; api-contract-withdrawal.md updated accordingly
 - 2026-05-07 — Added withdrawal module: WithdrawalMethod + WithdrawalRequest models; 11 user-facing endpoints; Prisma migration `20260508031223_add_withdrawal_method_and_request`; api-contract-withdrawal.md created
 - 2026-05-07 — Resolved audit findings: removed console.log from payment fail/cancel controllers (C-01); fixed account lock off-by-one to trigger on 5th attempt (C-02); moved approved-application TOCTOU check inside $transaction (H-01); getAuthUser now throws 401 instead of 404 for missing/deleted users, removed dead middleware check (H-02); added rate limiters for /refresh-token (30/15min) and /send-verification-email (5/hour) (H-03); deleteTaskService now sets deletedAt+deletedBy (H-04); commissionAmount cast to Number() before comparison (H-05); added refreshTokenValidationSchema on /refresh-token route (M-02); approveApplicationService returns value directly from $transaction (M-03); parseExpiryToMs moved to utils/time.ts with throw on unknown unit (L-01, L-04); loginLimiter lowered 20→10 (L-02); removed getAllUsersService and getAllUsersController dead code (L-03); removed /loggedin-user alias route (I-01); updated .env.sample to match .env structure
@@ -27,7 +28,7 @@ src/
   config/
     index.ts                  # Single typed Config object; ALL env vars read here — never use process.env elsewhere; throws FATAL error at startup if DATABASE_URL, JWT_ACCESS_SECRET, or JWT_REFRESH_SECRET are missing
     database.ts               # Singleton PrismaClient exported as `prisma`; import this in services
-    nodemailer.config.ts      # Nodemailer SMTP transporter setup
+    resend.config.ts          # Resend client singleton (initialized with config.resend.apiKey)
 
   interface/
     error.interface.ts        # TErrorSources type used by globalErrorHandler
@@ -111,7 +112,7 @@ src/
     createToken.ts            # createToken(payload, secret, expiresIn) — JWT sign utility
     createTnxId.ts            # createTnxId(prefix) — generates prefixed IDs, e.g., "TNX-...", "WTNX-..."
     query.ts                  # parseQuery(), buildPrismaQuery(), buildMeta() — unified pagination/sort/filter/search utilities
-    sendEmail.ts              # sendEmail(to, subject, html) — Nodemailer dispatch
+    sendEmail.ts              # sendEmail({ to, subject, html, from?, text? }) — Resend dispatch
     time.ts                   # getTimeRemaining(date), parseExpiryToMs(expiry) — time utilities
     index.ts                  # Re-exports: ResponseHandler, sendResponse, sendEmail, AppError, asyncHandler, createToken
 ```
@@ -130,7 +131,7 @@ src/
 | Zod            | ^4.1.5   | Schema validation                                         |
 | jsonwebtoken   | ^9.0.2   | JWT sign/verify                                           |
 | bcryptjs       | ^3.0.2   | Password hashing                                          |
-| nodemailer     | ^7.0.6   | SMTP email                                                |
+| resend         | ^6.12.3  | Transactional email via Resend API                        |
 | sslcommerz-lts | ^1.2.0   | SSLCommerz payment gateway client                         |
 | axios          | ^1.13.2  | HTTP client (used in payment service)                     |
 | crypto-js      | ^4.2.0   | Cryptographic utilities                                   |
@@ -340,10 +341,8 @@ All loaded in `src/config/index.ts`.
 | `JWT_REFRESH_SECRET`     | Refresh token signing secret                            |
 | `JWT_EXPIRES_IN`         | Access token expiry (e.g., `15d`)                       |
 | `JWT_REFRESH_EXPIRES_IN` | Refresh token expiry (e.g., `30d`)                      |
-| `SMTP_HOST`              | SMTP host (default: smtp.gmail.com)                     |
-| `SMTP_PORT`              | SMTP port (default: 587)                                |
-| `SMTP_USER`              | SMTP username                                           |
-| `SMTP_PASS`              | SMTP password                                           |
+| `RESEND_API_KEY`         | Resend API key                                          |
+| `RESEND_FROM_EMAIL`      | Sender address (e.g., `no-reply@doable.app`)            |
 | `STORE_ID`               | SSLCommerz store ID                                     |
 | `STORE_PASSWORD`         | SSLCommerz store password                               |
 | `SUCCESS_URL`            | SSLCommerz success callback URL (backend)               |
@@ -355,12 +354,12 @@ All loaded in `src/config/index.ts`.
 | `GATEWAY_BASE_URL`       | SSLCommerz gateway base URL                             |
 | `VALIDATION_API_URL`     | SSLCommerz validation API URL                           |
 | `IPN_URL`                | SSLCommerz IPN webhook URL                              |
-| `SMTP_SECURE`            | SMTP TLS flag (`"true"` or `"false"`, default `false`)  |
 
 ---
 
 ## Architectural Decisions
 
+- **Resend over Nodemailer:** Replaced Nodemailer SMTP with the Resend SDK. `sendEmail` calls `resend.emails.send()`; the singleton client lives in `src/config/resend.config.ts`. Requires `RESEND_API_KEY` and a verified sender domain set via `RESEND_FROM_EMAIL`.
 - **CommonJS over ESM:** `"type": "commonjs"` in package.json; `"module": "commonjs"` in tsconfig. All imports use `require` semantics.
 - **Express 5:** Using `^5.1.0`, which handles async errors natively in route handlers. `asyncHandler` is still used for explicit error propagation and consistency.
 - **Prisma `omit` for field exclusion:** Sensitive fields removed at query time via `omit` rather than post-query deletion. Constants defined per-module in `.constant.ts`.
