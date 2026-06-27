@@ -498,7 +498,10 @@ const getRelatedTasksService = async (taskId: string) => {
   return relatedTasks;
 };
 
-const getRecentlyPostedTasksService = async (userId: string | undefined) => {
+const getRecentlyPostedTasksService = async (
+  userId: string | undefined,
+  limit: number,
+) => {
   const tasks = await prisma.task.findMany({
     where: {
       isDeleted: false,
@@ -508,7 +511,7 @@ const getRecentlyPostedTasksService = async (userId: string | undefined) => {
     include: { images: true },
     omit: { ...taskSensitiveFieldsPublic },
     orderBy: { createdAt: "desc" },
-    take: 4,
+    take: limit,
   });
 
   return tasks;
