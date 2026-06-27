@@ -427,10 +427,7 @@ const approveTaskCompletionService = async (taskId: string, userId: string) => {
     task.status === "PAYMENT_PENDING" ||
     task.status === "PAYMENT_INITIATED"
   ) {
-    throw new AppError(
-      400,
-      "Task is already approved for payment processing!",
-    );
+    throw new AppError(400, "Task is already approved for payment processing!");
   }
   if (task.postedById !== userId) {
     throw new AppError(403, "Unauthorized to approve this task completion");
@@ -511,7 +508,7 @@ const getRecentlyPostedTasksService = async (userId: string | undefined) => {
     include: { images: true },
     omit: { ...taskSensitiveFieldsPublic },
     orderBy: { createdAt: "desc" },
-    take: 3,
+    take: 4,
   });
 
   return tasks;
