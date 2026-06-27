@@ -237,7 +237,8 @@ const deleteTaskImageController: RequestHandler = asyncHandler(
 const getRecentlyPostedTasksController: RequestHandler = asyncHandler(
   async (req, res) => {
     const user = req.user;
-    const tasks = await getRecentlyPostedTasksService(user?.id);
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 4;
+    const tasks = await getRecentlyPostedTasksService(user?.id, limit);
     sendResponse(
       res,
       200,
